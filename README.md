@@ -124,4 +124,4 @@ make fmt    # 自動整理格式
 
 ## 授權
 
-[MIT](LICENSE)。答對時印出的企鵝是照 TTUSSC 的社團 logo 描的。
+[MIT](LICENSE)。答對時印出的企鵝是照 TTUSSC 的社團 logo。
