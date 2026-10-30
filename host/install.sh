@@ -19,7 +19,8 @@ labctl config check
 
 echo "== 套件"
 apt-get update -q
-DEBIAN_FRONTEND=noninteractive apt-get install -y -q incus qemu-system-x86 qemu-utils ovmf nftables python3
+# 第 13 題在主機上產生時要用 git。
+DEBIAN_FRONTEND=noninteractive apt-get install -y -q incus qemu-system-x86 qemu-utils ovmf nftables python3 git
 
 echo "== VM 隔離防火牆和閘道同步"
 # 防火牆要比 Incus 先起來，VM 才不會在沒有隔離的情況下開機。
