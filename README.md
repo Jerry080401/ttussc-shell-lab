@@ -13,7 +13,7 @@ TTUSSC「Linux 常用指令」社課用的實驗環境。每個學生分到一�
 ## 需要的機器
 
 - 一台 VPS 跑 NetBird 伺服器：Ubuntu 24.04 或 26.04，2 GB 記憶體，要有公網 IP，對外開 TCP 22、80、443 和 UDP 3478。另外要一個網域，A 紀錄指到這台 VPS，用 Cloudflare 的話要設成 DNS only。
-- 一台實驗主機放學生的 VM：Ubuntu 24.04 或 26.04，x86_64，要有 `/dev/kvm`。不需要公網 IP。
+- 一台實驗主機放學生的 VM：Ubuntu 24.04 或 26.04，x86_64，要有 `/dev/kvm`。不需要公網 IP。不要裝 Docker，它會把轉送的預設規則改成 DROP，VM 會上不了網。
 - 老師自己的電腦（Linux 或 WSL）：要有 `make`、`python3`（含 venv）、`terraform` 和 `ssh`，而且要能 SSH 進 VPS 和實驗主機。實驗主機上的帳號要能免密碼 sudo。
 
 ## 安裝
