@@ -59,8 +59,9 @@ keys: check ## 建立 NetBird 群組、規則和 setup key（需要 NETBIRD_PAT�
 	policy=$$($(LABCTL) netbird default-policy); TF_VAR_default_policy_id=$$policy $(TF) apply
 
 host: check ## 把程式和設定放到實驗主機，裝好 Incus 和隔離防火牆
+	@# 這些程式之後由 root 執行，解開時不保留老師電腦上的擁有者，一律歸 root。
 	tar -cz --exclude=__pycache__ labctl host versions.lock.json | ssh $(LAB_SSH) \
-		"sudo sh -c 'rm -rf $(HOST_DIR).new && mkdir -p $(HOST_DIR).new && tar -xz -C $(HOST_DIR).new && rm -rf $(HOST_DIR) && mv $(HOST_DIR).new $(HOST_DIR)'"
+		"sudo sh -c 'rm -rf $(HOST_DIR).new && mkdir -p $(HOST_DIR).new && tar -xz --no-same-owner -C $(HOST_DIR).new && rm -rf $(HOST_DIR) && mv $(HOST_DIR).new $(HOST_DIR)'"
 	$(LABCTL) config host-env | ssh $(LAB_SSH) "sudo sh -c 'umask 077 && mkdir -p /etc/ttussc && cat >/etc/ttussc/lab.env'"
 	$(ON_HOST)/install.sh
 
