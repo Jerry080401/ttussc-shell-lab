@@ -27,7 +27,7 @@ export TF_VAR_setup_key_days := $(SETUP_KEY_DAYS)
 	test lint fmt
 
 help: ## 列出所有指令
-	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  make %-12s %s\n", $$1, $$2}'
+	@grep -E '^[a-z-]+:.*## ' $(firstword $(MAKEFILE_LIST)) | awk -F':.*## ' '{printf "  make %-12s %s\n", $$1, $$2}'
 
 env: ## 從 .env.example 建立 .env，LAB_SECRET 自動產生
 	@if [ -e $(ENV) ]; then echo "$(ENV) already exists, not touched"; exit 0; fi; \
