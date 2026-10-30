@@ -103,6 +103,7 @@ NetBird 的資料沒有備份。VPS 壞掉的話，重跑 `make netbird` 和 `ma
 ## 文件
 
 - [學生連線說明](docs/STUDENT_GUIDE.md)：課前準備和上課時的連線步驟，可以直接發給學生
+- [簡報](https://canva.link/ebc3teparl7gopj)：社課「Linux 常用指令」的投影片（Canva）
 - [題目設計](docs/LABS.md)：13 題在練什麼、資料怎麼產生、怎麼改題目
 
 ## 開發
