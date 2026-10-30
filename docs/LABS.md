@@ -1,72 +1,77 @@
-# 題目程式與重置設計
+# 題目
 
-13 題命令列練習，產生器在 `labctl/labs/`。題號就是上課做的順序，章節順序參考 pwn.college 的 Linux Luminarium，每章講完馬上做這章的題目（見 [簡報](https://canva.link/ebc3teparl7gopj)）。每題都有一個測試會用學生要打的指令實際解一次，那些測試就是解法，所以放在不公開的 `tests/private/`。
+13 題命令列練習，程式在 `labctl/labs/`。題號就是上課的順序，章節順序參考 pwn.college 的 Linux Luminarium，每章講完就做那一章的題目（[簡報](https://canva.link/ebc3teparl7gopj)）。
 
-## 題目清單
-
-| 題號 | 章節 | 題目 | 指令重點 | 完成方式 |
+| 題號 | 章節 | 題目 | 練習的指令 | 怎麼算解開 |
 |---|---|---|---|---|
 | 01 | 環境準備 | 報到 | `whoami`、`hostname`、參數 | 把帳號和主機名稱交給 `check` |
-| 02 | 環境準備 | 看說明書 | `--help`、`man`、長短選項 | 從 man page 找到頻道，`radio` 調頻並解碼 |
-| 03 | 路徑與目錄 | 迷宮裡的門 | `pwd`、`cd`、絕對／相對路徑 | 站在 `/tmp`、用絕對路徑呼叫迷宮深處的門 |
+| 02 | 環境準備 | 看說明書 | `--help`、`man`、長短選項 | 從 man page 找到頻道，用 `radio` 調頻並解碼 |
+| 03 | 路徑與目錄 | 迷宮裡的門 | `pwd`、`cd`、絕對和相對路徑 | 站在 `/tmp`，用絕對路徑呼叫迷宮深處的門 |
 | 04 | 檔案操作 | 企鵝把檔案藏起來了 | `ls -a`、`cat` | 找到隱藏檔 |
-| 05 | 檔案操作 | 整理倉庫 | `mkdir`、`mv`、`rm`、`cp`、萬用字元 | 整理好後 `check` 驗證目錄狀態 |
-| 06 | 檔案操作 | 倉庫裡只有一份真的 | `find`、檔名與大小條件 | 找到符合線索的檔案 |
-| 07 | 檔案操作 | 壓縮包裡還有一層 | `file`、`tar`、`gzip` | 解開課程提供的正常壓縮檔 |
-| 08 | 管線與重導向 | 企鵝只登入成功一次 | `grep`、`less`、pipe | 在人造服務 log 找出成功事件 |
-| 09 | 資料處理 | 誰偷吃最多條魚 | `cut`、`sort`、`uniq -c`、pipe | 從人工資料整理出答案，交給 `check` |
-| 10 | 行程管理 | 叫醒企鵝 | `&`、`ps`、`kill -USR1` | 對背景行程送 USR1 訊號 |
-| 11 | 使用者與權限 | 我有檔案，但我打不開 | `ls -l`、`chmod` | 修正自己擁有檔案的讀取權限 |
-| 12 | 加分 | 設定檔差在哪 | `diff`、文字編輯 | 修正自己的設定，`check` 驗證 |
-| 13 | 加分 | 被刪掉的日記 | `git log`、`git show` | 在只供本題使用的本地 repo 找到舊版本 |
+| 05 | 檔案操作 | 整理倉庫 | `mkdir`、`mv`、`rm`、`cp`、萬用字元 | 整理好之後用 `check` 檢查 |
+| 06 | 檔案操作 | 倉庫裡只有一份真的 | `find`、檔名和大小條件 | 找到符合線索的檔案 |
+| 07 | 檔案操作 | 壓縮包裡還有一層 | `file`、`tar`、`gzip` | 一層一層解開壓縮檔 |
+| 08 | 管線與重導向 | 企鵝只登入成功一次 | `grep`、`less`、pipe | 在 log 裡找出唯一一次成功的登入 |
+| 09 | 資料處理 | 誰偷吃最多條魚 | `cut`、`sort`、`uniq -c`、pipe | 算出答案交給 `check` |
+| 10 | 行程管理 | 叫醒企鵝 | `&`、`ps`、`kill -USR1` | 對背景的程式送 USR1 |
+| 11 | 使用者與權限 | 我有檔案，但我打不開 | `ls -l`、`chmod` | 替自己的檔案加上讀取權限 |
+| 12 | 加分 | 設定檔差在哪 | `diff`、文字編輯器 | 改好設定檔，用 `check` 檢查 |
+| 13 | 加分 | 被刪掉的日記 | `git log`、`git show` | 在這題的 git repo 裡找到舊版本 |
 
-資料皆為人工課程素材。題目不要求掃描其他學生、取得他人檔案或攻擊服務。
+## 學生拿到什麼
 
-## 學生看到什麼
+每個學生的 `~/lab/` 有一份總覽 `README.md`，每題一個資料夾，裡面的 `README.md` 寫故事、要做的事和提示。檔名用英文，因為學生在終端機裡不一定打得出中文。
 
-每位學生的 `~/lab/` 裡有一份總覽 `README.md`（題目清單），每題一個資料夾，裡面的 `README.md` 是中文說明（故事、要做的事、提示）。說明檔用 `README.md` 而不是中文檔名，因為學生在終端機裡不一定打得出中文。
+解開會拿到 flag，格式是 `TTUSSC{...}`，內容是一句跟這題有關的英文。第 1、2、3、5、9、10、12 題的 flag 是用正確答案推出來的金鑰加密的，要照題目用對方法跑附的程式才會印出來，直接 `grep` 找不到。
 
-解開每題都會得到一個 flag，格式是 `TTUSSC{...}`，內容是一句和這題重點有關的英文。第 1、2、3、5、9、10、12 題的 flag 不以明文存放，而是用「由正確答案推導的金鑰」加密：學生用對的方法（正確的參數、頻道、所在位置、整理結果、名字、訊號或設定內容）執行題目附的程式，才會印出 flag，`grep` 找不到。
+除了第 8 題，答對時會一起印出一張點陣圖，左邊是照社團 logo 描的牛仔帽企鵝，右邊是跟這題有關的道具（`labctl/labs/art.py`）。第 8 題的 flag 寫在 log 的其中一行，放不下圖。第 6 題每個箱子都印著同一張圖，不然 grep 圖案就找得到真的箱子。
 
-除了 Lab 08，答對時會和 flag 一起印出單色方塊的點陣圖：左邊是照社團 logo 描的牛仔帽企鵝，右邊是和該題有關的道具，每題不同（`labctl/labs/art.py`）。Lab 08 的 flag 寫在 log 的某一行，放不下圖。Lab 06 的每個箱子都印著同一張圖，否則學生 grep 圖案就能找到真箱子、繞過 `find`。
+flag 放在學生自己的 VM 裡，有心的學生可以去讀 `check` 的原始碼。這套題目是給上課練習用的，不適合拿來比賽。
 
-上課由老師帶著做，所以沒有另外的 `lab` 指令或登入訊息。
+## 答案
 
-## 程式結構
+每題的 flag 全班一樣，`python3 -m labctl labs flags` 也印得出來。
 
-| 檔案 | 內容 |
-|---|---|
-| `labctl/labs/labNN_*.py` | 一題一個模組：`LAB_ID`、`TITLE`、說明文字 `README`、`seed(ws, flag, rng, student_id)`。`NN` 就是上課順序 |
-| `labctl/labs/__init__.py` | 題目順序（`LABS`）、`build_labs()`、總覽說明 |
-| `labctl/labs/workspace.py` | 只允許寫在該題資料夾內，並明確設定檔案權限（不受 umask 影響） |
-| `labctl/labs/flags.py` | flag 與資料亂數 seed 的推導 |
-| `labctl/labs/art.py` | 答對時印出的點陣圖：社團企鵝加上每題的道具 |
-| `labctl/labs/answer_check.py` | 加密 flag 的 `seal()`，以及第 1、9、12 題共用的 `./check` 程式 |
+| 題號 | 題目 | flag |
+|---|---|---|
+| 01 | 報到 | `TTUSSC{whoami_is_a_deep_question}` |
+| 02 | 看說明書 | `TTUSSC{always_read_the_manual}` |
+| 03 | 迷宮裡的門 | `TTUSSC{absolute_paths_never_get_lost}` |
+| 04 | 企鵝把檔案藏起來了 | `TTUSSC{dotfiles_are_just_shy}` |
+| 05 | 整理倉庫 | `TTUSSC{rm_has_no_recycle_bin}` |
+| 06 | 倉庫裡只有一份真的 | `TTUSSC{one_real_box_among_many_fakes}` |
+| 07 | 壓縮包裡還有一層 | `TTUSSC{never_trust_a_file_extension}` |
+| 08 | 企鵝只登入成功一次 | `TTUSSC{grep_finds_the_needle}` |
+| 09 | 誰偷吃最多條魚 | `TTUSSC{sort_before_you_uniq}` |
+| 10 | 叫醒企鵝 | `TTUSSC{kill_just_sends_a_signal}` |
+| 11 | 我有檔案，但我打不開 | `TTUSSC{chmod_gave_me_the_key}` |
+| 12 | 設定檔差在哪 | `TTUSSC{spot_the_difference_with_diff}` |
+| 13 | 被刪掉的日記 | `TTUSSC{git_never_forgets}` |
 
-要改故事或提示，直接改對應模組裡的 `README` 字串，再跑測試確認題目仍解得開。
+## 題目資料
 
-`seed()` 只能透過 `ws` 寫入自己的資料夾，不連網路、不碰其他路徑。第 13 題在產生時會呼叫 `git`，並隔離老師電腦的 git 設定，所以產生題目的機器（宿主機）需要安裝 git。
-
-## flag、答案本與重建
-
-flag 是每題固定的一句英文，寫在各題模組的 `FLAG`，全班相同，好記、有意義，接受同學之間可以互抄。每位學生不同的是題目資料：資料亂數 seed 由老師的秘密金鑰推導，`HMAC-SHA256(secret, "seed", cohort, student, lab, round)`。秘密金鑰是 `.env` 的 `LAB_SECRET`，`make env` 會自動產生，不進 Git。
+每個學生拿到的資料不一樣，例如頻道、檔案大小、名字，但 flag 一樣。資料的亂數種子由 `.env` 的 `LAB_SECRET` 算出來：`HMAC-SHA256(secret, "seed", cohort, student, lab, round)`。同一個學生每次產生的內容完全相同，加 `--round 2` 會換一輪新的資料。
 
 ```bash
-# 替一位學生產生全部題目（目標資料夾必須是空的或不存在）
-python3 -m labctl labs build student01 --out /tmp/lab-student01
-
-# 每題的 flag（全班相同，不需要 .env）
+python3 -m labctl labs build student01 --out /tmp/lab-student01   # 目標資料夾要是空的
 python3 -m labctl labs flags
 ```
 
-`.env` 權限不是 600 時指令會拒絕執行。同一位學生、同一個 `--round` 每次產生的資料完全相同（「恢復原題」）。`--round 2` 換新一輪資料，flag 不變（「換新一輪資料」）。
+第 6、8 題的假 flag 是 16 位十六進位的亂碼，真的是一句話，所以 `grep TTUSSC` 一眼就看得出哪個是真的。這是刻意保留的，上課時請學生照題目要求用 `find` 和 `grep` 的條件找。
 
-Lab 06、08 的假 flag 維持 16 位十六進位的亂碼，真的 flag 是一句話，所以 `grep TTUSSC` 就能一眼認出真的。這是已知、接受的取捨，上課時請學生照題目要求用 `find`／`grep` 的條件找。
+## 改題目
 
-教學模式下 flag 就放在學生自己的 VM 裡，不保證防止學生看 `./check` 原始碼或互相分享答案。要公平競賽需另設 VM 外的提交與驗證服務。平台第一版不含中央計分板。
+| 檔案 | 內容 |
+|---|---|
+| `labctl/labs/labNN_*.py` | 一題一個模組：`LAB_ID`、`TITLE`、`FLAG`、說明 `README` 和產生資料的 `seed()` |
+| `labctl/labs/__init__.py` | 題目順序和總覽說明 |
+| `labctl/labs/workspace.py` | 只能寫進那一題的資料夾，檔案權限寫死，不受 umask 影響 |
+| `labctl/labs/flags.py` | 用 `LAB_SECRET` 推出資料的亂數種子 |
+| `labctl/labs/art.py` | 答對時印出的點陣圖 |
+| `labctl/labs/answer_check.py` | 加密 flag 的 `seal()`，還有第 1、9、12 題共用的 `check` |
 
-## 重置要求
+改故事或提示，就改模組裡的 `README` 字串，改完跑 `make test`。`seed()` 只能透過 `ws` 寫進自己的資料夾，也不連網路。第 13 題產生時會呼叫 `git`，所以實驗主機要有 git，`make host` 會裝。
 
-重置只刪改此題的工作目錄，拒絕越過固定根目錄，也不沿著學生建立的 symlink 寫到其他位置。不要在 shell 拼接學生輸入做 `rm -rf`。如果需要備份，先以不追蹤 symlink 的方式匯出指定作業，再替換工作目錄。
+## 重設
 
-種題與 reset 後要檢查 ownership：學生可寫自己的目錄，不能因此取得 guest 的系統管理檔案、老師憑證或宿主機資料。
+`make reset-lab STUDENT=student05 LAB=05-organize` 只重做那一題，舊的資料夾會改名成 `~/lab/.05-organize.old-時間` 留著。整份 `~/lab` 只有空的時候才會放題目，不會蓋掉學生的作業。放題目是用學生自己的身分寫檔案，所以學生在 `~/lab` 裡做的連結指不到系統檔案。
