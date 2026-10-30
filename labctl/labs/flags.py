@@ -1,6 +1,6 @@
 """Per-student, per-lab data seeds derived from the teacher's secret.
 
-The secret lives outside Git (e.g. local/lab-secret). Seeds are reproducible, so
+The secret is LAB_SECRET in .env, outside Git. Seeds are reproducible, so
 rebuilding a student's labs gives the same data. Bump `round_` for fresh data.
 Flags are not derived: each lab has one fixed sentence (`FLAG` in its module).
 """
