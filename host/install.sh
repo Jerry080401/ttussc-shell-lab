@@ -1,5 +1,5 @@
 #!/bin/bash
-# 設定實驗主機：裝 Incus，載入 VM 隔離防火牆，啟用閘道同步。可以重跑，改了 STUDENT_COUNT 也要重跑。
+# 設定實驗主機：裝 Incus，載入 VM 隔離防火牆，啟用閘道同步。可以重跑。
 # make host 會先把程式放到 /opt/ttussc/labs、設定放到 /etc/ttussc/lab.env，再執行這支。
 set -euo pipefail
 here=$(dirname "$(readlink -f "$0")")
