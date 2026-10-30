@@ -135,6 +135,13 @@ def cmd_netbird_default_policy(args):
     print(netbird.default_policy_id(_client(_config(args))))
 
 
+def cmd_netbird_check(args):
+    found = netbird.open_policies(_client(_config(args)))
+    if found:
+        raise ValueError(f"enabled policies use the All group, every student can reach every VM: {', '.join(found)}")
+    print("OK: no enabled policy uses the All group")
+
+
 def build_parser():
     parser = argparse.ArgumentParser(prog="labctl", description="TTUSSC shell lab tooling")
     parser.add_argument("--env", default=".env", type=Path, help="settings file (default: .env)")
@@ -197,6 +204,7 @@ def build_parser():
     nb = group("netbird", "ask the NetBird management API")
     command(nb, "status", cmd_netbird_status, "every student's VM and computers, online or not")
     command(nb, "default-policy", cmd_netbird_default_policy, "print the ID of the default All policy")
+    command(nb, "check", cmd_netbird_check, "fail if an enabled policy still uses the All group")
     return parser
 
 

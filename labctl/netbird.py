@@ -47,6 +47,27 @@ def default_policy_id(client):
     return next((p["id"] for p in policies if p.get("name") == DEFAULT_POLICY), "")
 
 
+def open_policies(client):
+    """Names of enabled policies with a rule from or to the All group, which lets every peer reach the others."""
+    groups = {g.get("id"): g.get("name") for g in client.get("/groups")}
+
+    def names(items):
+        for item in items or []:
+            if isinstance(item, dict):
+                yield item.get("name") or groups.get(item.get("id"))
+            else:
+                yield groups.get(item)
+
+    found = []
+    for policy in client.get("/policies"):
+        rules = [r for r in policy.get("rules") or [] if r.get("enabled", True)]
+        if policy.get("enabled") and any(
+            "All" in {*names(r.get("sources")), *names(r.get("destinations"))} for r in rules
+        ):
+            found.append(policy.get("name") or policy.get("id"))
+    return found
+
+
 def _members(peers):
     by_group = {}
     for peer in peers:

@@ -56,7 +56,8 @@ class-stop: check .venv/bin/ansible-playbook ## 下課後關 NetBird
 
 keys: check ## 建立 NetBird 群組、規則和 setup key（需要 NETBIRD_PAT）
 	$(TF) init -input=false >/dev/null
-	policy=$$($(LABCTL) netbird default-policy); TF_VAR_default_policy_id=$$policy $(TF) apply
+	policy=$$($(LABCTL) netbird default-policy); TF_VAR_default_policy_id=$$policy $(TF) apply $(TF_ARGS)
+	$(LABCTL) netbird check
 
 host: check ## 把程式和設定放到實驗主機，裝好 Incus 和隔離防火牆
 	@# 這些程式之後由 root 執行，解開時不保留老師電腦上的擁有者，一律歸 root。

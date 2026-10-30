@@ -66,6 +66,33 @@ class DefaultPolicyTest(unittest.TestCase):
             netbird.Client("https://netbird.example.com", "")
 
 
+GROUPS = ({"id": "g-all", "name": "All"}, {"id": "g-vm", "name": "linux-2026-vm-student01"})
+
+
+class OpenPoliciesTest(unittest.TestCase):
+    def open_policies(self, policies):
+        api = FakeApi({"/api/groups": list(GROUPS), "/api/policies": policies})
+        self.addCleanup(api.close)
+        return netbird.open_policies(netbird.Client(api.url, "token-value"))
+
+    def test_enabled_all_to_all_policy_is_found(self):
+        default = {
+            "name": "Default",
+            "enabled": True,
+            "rules": [{"sources": [{"id": "g-all", "name": "All"}], "destinations": [{"id": "g-all", "name": "All"}]}],
+        }
+        self.assertEqual(self.open_policies([default]), ["Default"])
+
+    def test_group_ids_without_names_are_resolved(self):
+        policy = {"name": "custom", "enabled": True, "rules": [{"sources": ["g-vm"], "destinations": ["g-all"]}]}
+        self.assertEqual(self.open_policies([policy]), ["custom"])
+
+    def test_disabled_policies_and_student_rules_pass(self):
+        default = {"name": "Default", "enabled": False, "rules": [{"sources": ["g-all"], "destinations": ["g-all"]}]}
+        ssh = {"name": "student01-ssh", "enabled": True, "rules": [{"sources": ["g-vm"], "destinations": ["g-vm"]}]}
+        self.assertEqual(self.open_policies([default, ssh]), [])
+
+
 class StatusTableTest(unittest.TestCase):
     def test_counts_vms_and_student_computers(self):
         peers = [
