@@ -40,7 +40,19 @@ systemctl start ttussc-gateway-sync.timer
 echo "== Incus"
 systemctl enable --now incus.socket incus-startup.service
 if ! incus storage show default >/dev/null 2>&1; then
-    # 沒有先自己建 storage pool 時用 Incus 的預設值，VM 硬碟放在 /var/lib/incus。
-    incus admin init --auto
+    # 沒有先自己建 storage pool 時，建一個放在 /var/lib/incus 的 dir pool。
+    # 不用 --auto：它會多建一個用不到的 incusbr0，網段還可能跟 VM 的重疊。
+    incus admin init --preseed <<'YAML'
+storage_pools:
+  - name: default
+    driver: dir
+profiles:
+  - name: default
+    devices:
+      root:
+        path: /
+        pool: default
+        type: disk
+YAML
 fi
 echo "完成，下一步：make vms"
