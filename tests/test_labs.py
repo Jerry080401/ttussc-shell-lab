@@ -1,4 +1,4 @@
-"""Lab catalog and build properties. Solving each lab is tested in tests/private/ (not published)."""
+"""Lab catalog and build properties."""
 
 import re
 import subprocess

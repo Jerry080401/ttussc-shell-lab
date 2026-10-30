@@ -10,7 +10,7 @@ local/
 *.pem
 *.key
 
-# 解題的測試就是解法，不公開。
+# 只放在自己電腦上的測試。
 tests/private/
 
 .venv/
