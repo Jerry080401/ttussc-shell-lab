@@ -19,11 +19,11 @@ jobs:
       - run: ruff check .
       - run: ruff format --check .
       - run: python -m unittest discover -s tests -t .
-      - name: Firewall test with real packets in a network namespace
+      - name: Tests that need root (firewall with real packets, host scripts)
         run: |
           sudo apt-get update -q
           sudo apt-get install -y -q nftables
-          sudo "$(command -v python)" -m unittest -v tests.test_firewall_netns
+          sudo "$(command -v python)" -m unittest -v tests.test_firewall_netns tests.test_host_scripts
 
   shell:
     runs-on: ubuntu-24.04
