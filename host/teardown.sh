@@ -18,11 +18,11 @@ disable_units() {
 }
 
 if systemctl -q is-active incus.service || systemctl -q is-active incus.socket; then
+    # 看主機上實際有哪些這一班的 VM，不只名單上的人數，人數改少時留下來的 VM 也一起關。
+    cohort=$(labctl config get cohort)
     running=()
-    list=$(labctl students)
-    for sid in $list; do
-        name=$(labctl vm "$sid" name)
-        incus info "$name" >/dev/null 2>&1 || continue
+    list=$(incus list --format csv -c n | grep -E "^${cohort}-student[0-9]{2}\$" || true)
+    for name in $list; do
         incus config set "$name" boot.autostart=false
         if [ "$(incus info "$name" | awk '/^Status:/ {print $2}')" = RUNNING ]; then
             running+=("$name")
