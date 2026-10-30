@@ -16,10 +16,6 @@ resource "netbird_group" "lab_vms" {
   name = "${local.cohort}-lab-vms"
 }
 
-resource "netbird_group" "lab_host_admin" {
-  name = "${local.cohort}-lab-host-admin"
-}
-
 resource "netbird_group" "client" {
   for_each = toset(local.students)
   name     = "${local.cohort}-client-${each.key}"
@@ -61,21 +57,6 @@ resource "netbird_policy" "teacher_lab_ssh" {
     ports         = ["22"]
     sources       = [netbird_group.teachers.id]
     destinations  = [netbird_group.lab_vms.id]
-  }
-}
-
-resource "netbird_policy" "teacher_host_ssh" {
-  name    = "${local.cohort}-teacher-host-ssh"
-  enabled = true
-
-  rule {
-    name          = "teacher-host-ssh"
-    action        = "accept"
-    bidirectional = false
-    protocol      = "tcp"
-    ports         = ["22"]
-    sources       = [netbird_group.teachers.id]
-    destinations  = [netbird_group.lab_host_admin.id]
   }
 }
 
