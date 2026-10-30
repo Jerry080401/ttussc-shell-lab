@@ -30,6 +30,8 @@ nft -c -f /etc/ttussc/lab-firewall.nft.new
 mv /etc/ttussc/lab-firewall.nft.new /etc/ttussc/lab-firewall.nft
 install -m 0755 "$here/gateway-sync" /usr/local/sbin/ttussc-gateway-sync
 install -m 0644 "$here"/systemd/ttussc-* /etc/systemd/system/
+install -d /etc/systemd/system/incus.service.d
+install -m 0644 "$here/systemd/incus-needs-lab-firewall.conf" /etc/systemd/system/incus.service.d/ttussc-lab-firewall.conf
 systemctl daemon-reload
 systemctl enable ttussc-lab-firewall.service ttussc-gateway-sync.timer
 systemctl restart ttussc-lab-firewall.service
