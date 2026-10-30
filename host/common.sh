@@ -1,8 +1,8 @@
 # shellcheck shell=bash
 # host/ 底下的腳本共用：程式和設定的位置、labctl，還有「全班一起跑」的迴圈。
 
-LAB_DIR=/opt/ttussc/labs
-LAB_ENV=/etc/ttussc/lab.env
+LAB_DIR=${LAB_DIR:-/opt/ttussc/labs}
+LAB_ENV=${LAB_ENV:-/etc/ttussc/lab.env}
 
 labctl() {
     PYTHONPATH="$LAB_DIR" python3 -m labctl --env "$LAB_ENV" "$@"
