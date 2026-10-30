@@ -1,0 +1,20 @@
+# 設定、秘密和執行時產生的檔案，都不進 Git。
+.env
+.env.*
+!.env.example
+local/
+*.tfstate
+*.tfstate.*
+*.tfvars
+.terraform/
+*.pem
+*.key
+
+# 解題的測試就是解法，不公開。
+tests/private/
+
+.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+build/
