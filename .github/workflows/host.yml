@@ -1,0 +1,101 @@
+name: Lab host
+
+# 在 GitHub 的 Ubuntu runner 上真的跑一次主機腳本：裝 Incus、建一台 VM、放題目、測隔離、收尾。
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "host/**"
+      - "labctl/**"
+      - "versions.lock.json"
+      - ".github/workflows/host.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  host:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      HOST: /opt/ttussc/labs/host
+      VM: linux-2026-student01
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Runner has KVM
+        run: ls -l /dev/kvm
+
+      - name: Undo Docker's forward policy
+        # runner 上的 Docker 會把 FORWARD 的預設改成 DROP，VM 會上不了網。
+        run: sudo iptables -P FORWARD ACCEPT
+
+      - name: Put the code and settings in place like make host
+        run: |
+          secret=$(python3 -c 'import secrets; print(secrets.token_hex(32))')
+          sed -e 's/^STUDENT_COUNT=.*/STUDENT_COUNT=2/' -e "s/^LAB_SECRET=.*/LAB_SECRET=$secret/" \
+            -e 's/^STUDENT_SUDO=.*/STUDENT_SUDO=false/' .env.example >lab.env
+          sudo install -d -m 0700 /etc/ttussc
+          sudo install -m 0600 lab.env /etc/ttussc/lab.env
+          sudo mkdir -p /opt/ttussc/labs
+          tar -cz --exclude=__pycache__ labctl host versions.lock.json | sudo tar -xz --no-same-owner -C /opt/ttussc/labs
+
+      - name: install.sh twice
+        run: |
+          sudo "$HOST/install.sh"
+          sudo "$HOST/install.sh"
+          sudo nft list table inet ttussc_lab >/dev/null
+          systemctl is-active ttussc-lab-firewall.service ttussc-gateway-sync.timer incus.socket
+          systemctl cat incus.service | grep -q 'nft list table inet ttussc_lab'
+          if ip -br link | grep -q '^incusbr0'; then echo "incusbr0 should not exist"; exit 1; fi
+
+      - name: create-vm.sh
+        timeout-minutes: 30
+        run: sudo "$HOST/create-vm.sh" student01
+
+      - name: Labs, one reset and the password
+        run: |
+          sudo "$HOST/seed-labs.sh" student01 | tee seed.txt
+          grep -q 'seeded 13 labs' seed.txt
+          sudo "$HOST/seed-labs.sh" student01 | grep -q 'not empty, skipped'
+          sudo "$HOST/seed-labs.sh" student01 05-organize
+          sudo incus exec "$VM" -- sh -c 'ls -A /home/student/lab | grep -q "^\.05-organize\.old-"'
+          sudo incus exec "$VM" -- stat -c '%U %a' /home/student/lab/11-chmod/locked.txt | grep -qx 'student 0'
+          printf 'student01 test-pass-1234\n' | sudo "$HOST/set-password.sh" all
+
+      - name: Password login over SSH inside the VM
+        run: |
+          vm() { sudo incus exec "$VM" -- "$@"; }
+          vm env DEBIAN_FRONTEND=noninteractive apt-get install -y -q sshpass >/dev/null
+          vm sshpass -p test-pass-1234 ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+            student@127.0.0.1 whoami | grep -qx student
+
+      - name: Isolation seen from inside the VM
+        run: |
+          vm() { sudo incus exec "$VM" -- "$@"; }
+          blocked() { if vm "$@"; then echo "not blocked: $*"; exit 1; fi; }
+          vm curl -sS -o /dev/null --max-time 20 https://deb.debian.org/
+          blocked timeout 5 bash -c 'echo >/dev/tcp/10.231.0.1/22'
+          blocked curl -sS --max-time 5 http://169.254.169.254/
+          gateway=$(ip -j -4 route show default | python3 -c 'import json, sys; print(json.load(sys.stdin)[0]["gateway"])')
+          blocked ping -c 1 -W 3 "$gateway"
+
+      - name: teardown.sh
+        run: |
+          sudo "$HOST/teardown.sh"
+          if sudo nft list table inet ttussc_lab >/dev/null 2>&1; then echo "firewall table still loaded"; exit 1; fi
+          if systemctl is-active --quiet incus.service; then echo "Incus still running"; exit 1; fi
+          if ip -br link | grep -q '^tl'; then echo "lab bridges left"; exit 1; fi
+          for unit in ttussc-lab-firewall.service ttussc-gateway-sync.timer incus.socket; do
+            if systemctl is-enabled --quiet "$unit"; then echo "$unit still enabled"; exit 1; fi
+          done
+
+      - name: Reinstall keeps the VM off, and Incus refuses to start without the firewall
+        run: |
+          sudo "$HOST/install.sh"
+          [ "$(sudo incus config get "$VM" boot.autostart)" = false ]
+          sudo incus info "$VM" | grep -q '^Status: STOPPED'
+          sudo nft delete table inet ttussc_lab
+          if sudo systemctl restart incus.service; then echo "Incus started without the firewall"; exit 1; fi
+          sudo systemctl restart ttussc-lab-firewall.service
+          sudo systemctl start incus.service
