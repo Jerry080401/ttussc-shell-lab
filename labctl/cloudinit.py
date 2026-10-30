@@ -28,8 +28,7 @@ PACKAGES = [
 CHINESE_PACKAGES = ["language-pack-zh-hant", "manpages-zh"]
 
 # Ubuntu 26.04 預設的 coreutils 是 uutils（Rust 版），ls、cp、chmod 等的 --help 和錯誤訊息只有英文。
-# 24.04 本來就是 GNU 版，不用換。
-# 換回 GNU coreutils 才會用語言包的中文翻譯。coreutils-from-uutils 標成 Protected，
+# 換回 GNU coreutils 才會用語言包的中文翻譯（24.04 本來就是 GNU 版）。coreutils-from-uutils 標成 Protected，
 # packages 清單移不掉它，所以在 runcmd 明確移除，而且要加 --allow-remove-essential。
 # 開機時 apt 可能還被自動更新占用，Lock::Timeout 讓它等鎖，不會直接失敗。
 SWITCH_TO_GNU_COREUTILS = [
@@ -66,9 +65,14 @@ def _sshd_dropin():
 
 
 def _locale_profile(locale):
-    lines = ["# 學生登入時的語系。要看英文原文可執行：export LANG=C.UTF-8 LANGUAGE=", f"export LANG={locale}"]
     if locale.startswith("zh_TW"):
-        lines.append("export LANGUAGE=zh_TW:zh")
+        lines = [
+            "# 學生登入時顯示繁體中文。要看英文原文可執行：export LANG=C.UTF-8 LANGUAGE=",
+            f"export LANG={locale}",
+            "export LANGUAGE=zh_TW:zh",
+        ]
+    else:
+        lines = ["# 學生登入時的語系（.env 的 GUEST_LOCALE）。", f"export LANG={locale}"]
     return "\n".join(lines) + "\n"
 
 
