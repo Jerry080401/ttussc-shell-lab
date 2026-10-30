@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  python:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install ruff==0.16.0
+      - run: ruff check .
+      - run: ruff format --check .
+      - run: python -m unittest discover -s tests -t .
+      - name: Firewall test with real packets in a network namespace
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q nftables
+          sudo "$(command -v python)" -m unittest -v tests.test_firewall_netns
+
+  shell:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: shellcheck -x host/*.sh host/gateway-sync tests/netlab.sh
+
+  terraform:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.16.4
+      - run: terraform -chdir=netbird/terraform fmt -check -recursive
+      - run: terraform -chdir=netbird/terraform init -backend=false -input=false
+      - run: terraform -chdir=netbird/terraform validate
+
+  ansible:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install ansible-core==2.21.4
+      - name: Syntax check
+        working-directory: netbird/ansible
+        run: |
+          for playbook in site.yml class-start.yml class-stop.yml; do
+            ansible-playbook --syntax-check "$playbook"
+          done
