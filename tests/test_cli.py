@@ -73,13 +73,13 @@ class RenderCommandTest(unittest.TestCase):
     def test_cloud_init_unknown_student_fails(self):
         self.assertEqual(labctl("--env", EXAMPLE_ENV, "render", "cloud-init", "student99").returncode, 2)
 
-    def test_firewall_covers_every_bridge(self):
+    def test_firewall_matches_every_lab_bridge_by_name(self):
         result = labctl("--env", EXAMPLE_ENV, "render", "firewall")
         self.assertEqual(result.returncode, 0, result.stderr)
-        # student01／student02 的 bridge 名稱（見 test_plan），全班 40 台的 bridge 都要受規則保護。
-        self.assertIn('"tl617e6724c6"', result.stdout)
-        self.assertIn('"tl3f1ae80e23"', result.stdout)
-        self.assertEqual(result.stdout.count('"tl'), 40)
+        # 用名稱比對所有 tl* 介面，不列出今天名單上的 bridge，人數變少時留下來的 VM 也一樣被隔離。
+        self.assertIn('iifname "tl*" drop', result.stdout)
+        self.assertIn('oifname "tl*" drop', result.stdout)
+        self.assertNotIn("tl617e6724c6", result.stdout)
 
 
 class GatewaySyncCommandTest(unittest.TestCase):

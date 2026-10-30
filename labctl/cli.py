@@ -67,10 +67,7 @@ def cmd_render_cloud_init(args):
 
 
 def cmd_render_firewall(args):
-    # 規則要涵蓋每一台 VM 的 bridge。
-    plan = build_plan(_config(args))
-    bridges = [i["network"]["bridge"] for i in plan["instances"]]
-    sys.stdout.write(render_ruleset(bridges, plan["protected_networks"]))
+    sys.stdout.write(render_ruleset([str(n) for n in _config(args).protected_networks]))
 
 
 def cmd_render_gateway_sync(args):

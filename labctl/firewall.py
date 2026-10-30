@@ -1,6 +1,6 @@
 """Host firewall (nftables) that isolates lab VMs from each other, the host and the LAN.
 
-Rules, applied to traffic entering from any lab bridge:
+Rules, applied to traffic entering from any lab bridge (every interface named tl*):
 - to the host itself: only DHCP and DNS, everything else dropped.
 - forwarded: dropped to private/special ranges, to configured protected networks
   and to the default gateway itself. Everything else must be routed *via* a
@@ -16,6 +16,7 @@ anything: the design fails closed.
 import ipaddress
 
 TABLE = "inet ttussc_lab"
+BRIDGE_PREFIX = "tl"  # 每台 VM 的 bridge 都叫 tl 加 10 位十六進位，見 plan.bridge_name
 
 # 私有、共享、保留與特殊用途位址，VM 一律不能直接連。
 BLOCKED_V4 = [
@@ -38,13 +39,13 @@ def _v4_set(networks):
     return ", ".join(str(n) for n in collapsed)
 
 
-def render_ruleset(bridges, protected_networks):
-    """Return an nft script that atomically replaces the ttussc_lab table."""
-    names = sorted(bridges)
-    for name in names:
-        if not (name.isascii() and name.isalnum() and 1 <= len(name) <= 15):
-            raise ValueError(f"invalid bridge name: {name!r}")
-    bridge_elements = "\t\telements = { " + ", ".join(f'"{n}"' for n in names) + " }\n" if names else ""
+def render_ruleset(protected_networks):
+    """Return an nft script that atomically replaces the ttussc_lab table.
+
+    The rules match every interface named tl*, not the bridges of today's class list,
+    so a VM left over after STUDENT_COUNT shrinks is still isolated.
+    """
+    lab = f'"{BRIDGE_PREFIX}*"'
     return (
         "#!/usr/sbin/nft -f\n"
         "# Managed by labctl. Regenerate instead of editing.\n"
@@ -52,11 +53,6 @@ def render_ruleset(bridges, protected_networks):
         f"delete table {TABLE}\n"
         "\n"
         f"table {TABLE} {{\n"
-        "\tset lab_bridges {\n"
-        "\t\ttype ifname\n"
-        f"{bridge_elements}"
-        "\t}\n"
-        "\n"
         "\tset blocked_v4 {\n"
         "\t\ttype ipv4_addr\n"
         "\t\tflags interval\n"
@@ -70,21 +66,21 @@ def render_ruleset(bridges, protected_networks):
         "\n"
         "\tchain input {\n"
         "\t\ttype filter hook input priority filter - 10; policy accept;\n"
-        "\t\tiifname @lab_bridges meta nfproto ipv6 drop\n"
-        "\t\tiifname @lab_bridges udp dport { 53, 67 } accept\n"
-        "\t\tiifname @lab_bridges tcp dport 53 accept\n"
-        "\t\tiifname @lab_bridges drop\n"
+        f"\t\tiifname {lab} meta nfproto ipv6 drop\n"
+        f"\t\tiifname {lab} udp dport {{ 53, 67 }} accept\n"
+        f"\t\tiifname {lab} tcp dport 53 accept\n"
+        f"\t\tiifname {lab} drop\n"
         "\t}\n"
         "\n"
         "\tchain forward {\n"
         "\t\ttype filter hook forward priority filter - 10; policy accept;\n"
-        "\t\tiifname @lab_bridges meta nfproto ipv6 drop\n"
-        "\t\toifname @lab_bridges meta nfproto ipv6 drop\n"
-        "\t\tiifname @lab_bridges ip daddr @blocked_v4 drop\n"
-        "\t\tiifname @lab_bridges ip daddr @uplink_gateways drop\n"
-        "\t\tiifname @lab_bridges rt ip nexthop != @uplink_gateways drop\n"
-        "\t\toifname @lab_bridges ct state established,related accept\n"
-        "\t\toifname @lab_bridges drop\n"
+        f"\t\tiifname {lab} meta nfproto ipv6 drop\n"
+        f"\t\toifname {lab} meta nfproto ipv6 drop\n"
+        f"\t\tiifname {lab} ip daddr @blocked_v4 drop\n"
+        f"\t\tiifname {lab} ip daddr @uplink_gateways drop\n"
+        f"\t\tiifname {lab} rt ip nexthop != @uplink_gateways drop\n"
+        f"\t\toifname {lab} ct state established,related accept\n"
+        f"\t\toifname {lab} drop\n"
         "\t}\n"
         "}\n"
     )

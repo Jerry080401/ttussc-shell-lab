@@ -4,6 +4,7 @@ import hashlib
 import ipaddress
 
 from labctl.config import SUBNET_PREFIX, select_students
+from labctl.firewall import BRIDGE_PREFIX
 
 VM_FIELDS = (
     "name",
@@ -36,7 +37,7 @@ def guest_hostname(sid):
 
 def bridge_name(cohort, sid):
     # 名稱一改，主機上既有的 bridge 就對不上了。Linux 介面名稱最多 15 個字元。
-    return "tl" + hashlib.sha256(f"{cohort}:{sid}".encode()).hexdigest()[:10]
+    return BRIDGE_PREFIX + hashlib.sha256(f"{cohort}:{sid}".encode()).hexdigest()[:10]
 
 
 def build_plan(config, selected=None):

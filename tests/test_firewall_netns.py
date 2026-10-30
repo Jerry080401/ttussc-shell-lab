@@ -51,7 +51,7 @@ class FirewallInNetnsTest(unittest.TestCase):
 
     def test_kernel_accepts_ruleset_without_instances(self):
         # 還沒有任何 VM 時（例如宿主機剛裝好）規則也要能載入。
-        path = self.write(render_ruleset([], []))
+        path = self.write(render_ruleset([]))
         result = subprocess.run([*NETNS, NFT, "-f", path], env=nft_env(), capture_output=True, text=True)
         self.assertEqual(result.returncode, 0, result.stderr)
 
@@ -59,11 +59,11 @@ class FirewallInNetnsTest(unittest.TestCase):
         normal, protected = plan(), plan(PROTECTED_NETWORKS="203.0.113.0/24")
         br1, br2 = bridges(normal)
         files = [
-            self.write(render_ruleset(bridges(normal), normal["protected_networks"])),
+            self.write(render_ruleset(normal["protected_networks"])),
             self.write(render_gateway_sync(["198.51.100.1"])),
             self.write(render_gateway_sync(["198.51.100.254"])),
             self.write(render_gateway_sync([])),
-            self.write(render_ruleset(bridges(protected), protected["protected_networks"])),
+            self.write(render_ruleset(protected["protected_networks"])),
         ]
         env = dict(nft_env(), BR1=br1, BR2=br2)
         result = subprocess.run(
