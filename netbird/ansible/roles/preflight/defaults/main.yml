@@ -1,0 +1,3 @@
+---
+preflight_min_memory_mb: 1800
+preflight_min_free_disk_gib: 10

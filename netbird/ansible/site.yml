@@ -1,0 +1,13 @@
+---
+# 在 VPS 上安裝 NetBird（make netbird）。想先看會改什麼：make netbird ANSIBLE_ARGS="--check --diff"。
+- name: Configure NetBird VPS
+  hosts: netbird_vps
+  become: true
+  vars:
+    ttussc_versions: "{{ lookup('ansible.builtin.file', playbook_dir ~ '/../../versions.lock.json') | from_json }}"
+    netbird_compose_directory: /opt/ttussc/netbird
+    netbird_installer_directory: /opt/ttussc/installer
+  roles:
+    - preflight
+    - docker
+    - netbird

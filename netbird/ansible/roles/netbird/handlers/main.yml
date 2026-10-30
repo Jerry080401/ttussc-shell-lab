@@ -1,0 +1,6 @@
+---
+- name: Recreate NetBird services
+  ansible.builtin.command:
+    cmd: docker compose up -d --pull missing --remove-orphans
+    chdir: "{{ netbird_compose_directory }}"
+  changed_when: true

@@ -1,0 +1,82 @@
+---
+- name: Require a supported OS
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['distribution'] == 'Ubuntu'
+      - ("ubuntu-" ~ ansible_facts['distribution_version']) in ttussc_versions.supported_vps_os
+      - ansible_facts['architecture'] in ['x86_64', 'aarch64']
+    fail_msg: >-
+      只支援 {{ ttussc_versions.supported_vps_os | join('、') }}（x86_64/aarch64），
+      目前是 {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_version'] }}
+      {{ ansible_facts['architecture'] }}
+    quiet: true
+
+- name: Require the settings from .env
+  ansible.builtin.assert:
+    that:
+      - netbird_domain is defined
+      - netbird_domain is match('^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$')
+      - netbird_domain is not search('example\.(com|org|net)$')
+      - netbird_public_ip is defined
+      - netbird_public_ip is match('^((25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])\.){3}(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])$')
+      - netbird_letsencrypt_email is defined
+      - netbird_letsencrypt_email is match('^[^@\s]+@[^@\s]+\.[^@\s]+$')
+      - netbird_letsencrypt_email is not search('example\.(com|org|net)$')
+    fail_msg: ".env 的 NETBIRD_DOMAIN、NETBIRD_PUBLIC_IP 或 ADMIN_EMAIL 沒填或填錯（不能用 example.com）"
+    quiet: true
+
+- name: Require enough memory
+  ansible.builtin.assert:
+    that: ansible_facts['memtotal_mb'] >= preflight_min_memory_mb
+    fail_msg: "記憶體 {{ ansible_facts['memtotal_mb'] }} MB，少於官方建議的 2 GB"
+    quiet: true
+
+- name: Require enough free disk on /
+  vars:
+    root_mount: "{{ ansible_facts['mounts'] | selectattr('mount', 'equalto', '/') | first }}"
+  ansible.builtin.assert:
+    that: (root_mount.size_available / 1024**3) >= preflight_min_free_disk_gib
+    fail_msg: "/ 只剩 {{ (root_mount.size_available / 1024**3) | round(1) }} GiB，需要至少 {{ preflight_min_free_disk_gib }} GiB"
+    quiet: true
+
+# 直接問 DNS，不讀 /etc/hosts（主機自己的名稱在 hosts 裡會是 127.0.1.1）。
+- name: Resolve the NetBird domain from the VPS
+  ansible.builtin.command: resolvectl query -4 --synthesize=no --cache=no {{ netbird_domain | quote }}
+  register: preflight_dns
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Require the domain to point directly at this VPS
+  vars:
+    resolved: "{{ preflight_dns.stdout | regex_findall('\\b(?:[0-9]{1,3}\\.){3}[0-9]{1,3}\\b') | unique | list }}"
+  ansible.builtin.assert:
+    that: resolved == [netbird_public_ip]
+    fail_msg: >-
+      {{ netbird_domain }} 解析為 {{ resolved | default([]) | join(', ') or '（沒有結果）' }}，
+      應該只有 {{ netbird_public_ip }}。若在 Cloudflare，請把該 A 紀錄設成「DNS only」（灰色雲），
+      不能開 Proxied（橘色雲），否則 UDP 3478 與 NetBird 連線會失敗。
+    quiet: true
+
+- name: Check whether NetBird was already installed
+  ansible.builtin.stat:
+    path: "{{ netbird_compose_directory }}/config.yaml"
+  register: preflight_existing
+
+- name: List listeners on NetBird ports before first install
+  ansible.builtin.shell: |
+    set -o pipefail
+    ss -H -lntup | awk '{print $1, $5, $7}' | grep -E '(^tcp \S+:(80|443) )|(^udp \S+:3478 )' || true
+  args:
+    executable: /bin/bash
+  register: preflight_ports
+  changed_when: false
+  check_mode: false
+  when: not preflight_existing.stat.exists
+
+- name: Require ports 80/443/tcp and 3478/udp to be free before first install
+  ansible.builtin.assert:
+    that: preflight_ports.stdout | trim | length == 0
+    fail_msg: "以下 port 已被其他服務使用，NetBird 需要獨佔這台 VPS：{{ preflight_ports.stdout_lines | join('; ') }}"
+    quiet: true
+  when: not preflight_existing.stat.exists

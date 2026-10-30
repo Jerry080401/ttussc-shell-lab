@@ -1,0 +1,7 @@
+---
+netbird_ready_retries: 30
+netbird_ready_delay: 10
+netbird_admin_email: "{{ netbird_letsencrypt_email }}"
+netbird_admin_name: Teacher
+# 存在老師電腦的 local/，不進 Git。
+netbird_admin_password_file: "{{ playbook_dir }}/../../local/netbird-admin-password"

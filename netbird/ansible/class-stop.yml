@@ -1,0 +1,24 @@
+---
+# 下課後執行（make class-stop）：停止 NetBird。對外只剩 SSH，資料與設定保留，下次 make class-start 再開。
+- name: Stop NetBird after class
+  hosts: netbird_vps
+  become: true
+  vars:
+    netbird_compose_directory: /opt/ttussc/netbird
+  tasks:
+    - name: Stop NetBird services
+      ansible.builtin.command:
+        cmd: docker compose stop
+        chdir: "{{ netbird_compose_directory }}"
+      register: class_stop
+      changed_when: "'Stopped' in class_stop.stderr"
+
+    - name: Confirm nothing listens on 80/443/3478
+      ansible.builtin.shell: |
+        set -o pipefail
+        ss -H -lntu | awk '{print $1, $5}' | grep -E '(^tcp \S+:(80|443)$)|(^udp \S+:3478$)' || true
+      args:
+        executable: /bin/bash
+      register: class_ports
+      changed_when: false
+      failed_when: class_ports.stdout | trim | length > 0

@@ -1,0 +1,23 @@
+---
+# 上課前約 10 分鐘執行（make class-start）：啟動 NetBird，等 HTTPS 可用（憑證若需續約會在此時處理）。
+- name: Start NetBird for class
+  hosts: netbird_vps
+  become: true
+  vars:
+    netbird_compose_directory: /opt/ttussc/netbird
+  tasks:
+    - name: Start NetBird services
+      ansible.builtin.command:
+        cmd: docker compose up -d
+        chdir: "{{ netbird_compose_directory }}"
+      register: class_start
+      changed_when: "'Started' in class_start.stderr or 'Created' in class_start.stderr"
+
+    - name: Wait for the public HTTPS endpoint
+      ansible.builtin.uri:
+        url: "https://{{ netbird_domain }}/oauth2/.well-known/openid-configuration"
+        status_code: 200
+      register: class_ready
+      until: class_ready.status == 200
+      retries: 30
+      delay: 10

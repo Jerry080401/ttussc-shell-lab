@@ -1,0 +1,43 @@
+---
+- name: Check for an existing Docker installation
+  ansible.builtin.command: docker compose version
+  register: docker_existing
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+# 已有 Docker（例如 VPS 業者預先裝好的 docker-ce）就沿用，不裝 Ubuntu 的 docker.io 以免套件衝突。
+- name: Install Docker and Compose from Ubuntu
+  ansible.builtin.apt:
+    name:
+      - docker.io
+      - docker-compose-v2
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+  when: docker_existing.rc != 0
+
+- name: Install installer dependencies
+  ansible.builtin.apt:
+    name:
+      - jq
+      - curl
+      - openssl
+      - ca-certificates
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+# --check 預演時 Docker 還沒真的裝上，下面兩步只能跳過。
+- name: Enable Docker
+  ansible.builtin.systemd_service:
+    name: docker
+    enabled: true
+    state: started
+  when: not (ansible_check_mode and docker_existing.rc != 0)
+
+- name: Verify docker compose works
+  ansible.builtin.command: docker compose version
+  changed_when: false
+  check_mode: false
+  when: not (ansible_check_mode and docker_existing.rc != 0)

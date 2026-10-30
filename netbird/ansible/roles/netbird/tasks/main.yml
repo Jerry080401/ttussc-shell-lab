@@ -1,0 +1,164 @@
+---
+- name: Create NetBird directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0750"
+  loop:
+    - "{{ netbird_compose_directory }}"
+    - "{{ netbird_installer_directory }}"
+  register: netbird_directories
+
+- name: Download the pinned official installer
+  ansible.builtin.get_url:
+    url: "{{ ttussc_versions.installer.url }}"
+    dest: "{{ netbird_installer_directory }}/getting-started-{{ ttussc_versions.netbird_release }}.sh"
+    checksum: "sha256:{{ ttussc_versions.installer.sha256 }}"
+    owner: root
+    group: root
+    mode: "0700"
+  # --check 預演時目錄還不存在。
+  when: not (ansible_check_mode and netbird_directories is changed)
+
+# 官方腳本在 config.yaml 已存在時會拒絕重跑，所以只在第一次安裝時執行。
+- name: Run the official installer once (non-interactive, built-in Traefik)
+  ansible.builtin.command:
+    cmd: "{{ netbird_installer_directory }}/getting-started-{{ ttussc_versions.netbird_release }}.sh"
+    chdir: "{{ netbird_compose_directory }}"
+    creates: "{{ netbird_compose_directory }}/config.yaml"
+  environment:
+    NETBIRD_NON_INTERACTIVE: "true"
+    NETBIRD_DOMAIN: "{{ netbird_domain }}"
+    NETBIRD_LETSENCRYPT_EMAIL: "{{ netbird_letsencrypt_email }}"
+    NETBIRD_REVERSE_PROXY_TYPE: "0"
+    NETBIRD_ENABLE_PROXY: "false"
+    NETBIRD_ENABLE_CROWDSEC: "false"
+    NETBIRD_SERVER_IMAGE: "{{ ttussc_versions.images.netbird_server }}"
+    DASHBOARD_IMAGE: "{{ ttussc_versions.images.dashboard }}"
+    TRAEFIK_IMAGE: "{{ ttussc_versions.images.traefik }}"
+  register: netbird_install
+  when: not (ansible_check_mode and netbird_directories is changed)
+
+- name: Check generated NetBird files
+  ansible.builtin.stat:
+    path: "{{ netbird_compose_directory }}/docker-compose.yml"
+  register: netbird_compose_file
+
+# 升級時只改 versions.lock.json，這裡把 compose 內的映像改成鎖定版本。
+- name: Keep images pinned to versions.lock.json
+  ansible.builtin.replace:
+    path: "{{ netbird_compose_directory }}/docker-compose.yml"
+    regexp: '^(\s+image:\s+){{ item.repo | regex_escape }}[:@]\S+$'
+    replace: '\g<1>{{ item.image }}'
+  loop:
+    - { repo: "netbirdio/netbird-server", image: "{{ ttussc_versions.images.netbird_server }}" }
+    - { repo: "netbirdio/dashboard", image: "{{ ttussc_versions.images.dashboard }}" }
+    - { repo: "traefik", image: "{{ ttussc_versions.images.traefik }}" }
+  loop_control:
+    label: "{{ item.repo }}"
+  when: netbird_compose_file.stat.exists
+  notify: Recreate NetBird services
+
+- name: Restrict generated config files to root
+  ansible.builtin.file:
+    path: "{{ netbird_compose_directory }}/{{ item }}"
+    owner: root
+    group: root
+    mode: "0600"
+  loop:
+    - config.yaml
+    - dashboard.env
+    - docker-compose.yml
+  when: netbird_compose_file.stat.exists
+
+- name: Apply pending image changes
+  ansible.builtin.meta: flush_handlers
+
+# 平常 NetBird 是關著的（make class-stop），只有在執行中才檢查網站。
+- name: Check whether NetBird is running
+  ansible.builtin.command:
+    cmd: docker compose ps --status running --services
+    chdir: "{{ netbird_compose_directory }}"
+  register: netbird_running
+  changed_when: false
+  check_mode: false
+  when: netbird_compose_file.stat.exists
+
+- name: Wait for the public HTTPS endpoint
+  ansible.builtin.uri:
+    url: "https://{{ netbird_domain }}/oauth2/.well-known/openid-configuration"
+    status_code: 200
+  register: netbird_ready
+  until: netbird_ready.status == 200
+  retries: "{{ netbird_ready_retries }}"
+  delay: "{{ netbird_ready_delay }}"
+  when:
+    - not ansible_check_mode
+    - netbird_running.stdout_lines is defined
+    - "'netbird-server' in netbird_running.stdout_lines"
+
+# 服務一上線 /setup 就對任何人開放，所以立刻用 API 建立老師的帳號，不留空窗。
+- name: Check whether the owner account was created by this project
+  ansible.builtin.stat:
+    path: "{{ netbird_compose_directory }}/.owner-created"
+  register: netbird_owner_marker
+
+- name: Generate the admin password on the control node
+  ansible.builtin.set_fact:
+    netbird_admin_password: "{{ lookup('ansible.builtin.password', netbird_admin_password_file, length=32, chars=['ascii_letters', 'digits']) }}"
+  no_log: true
+  when: not netbird_owner_marker.stat.exists and not ansible_check_mode
+
+- name: Restrict the admin password file
+  ansible.builtin.file:
+    path: "{{ netbird_admin_password_file }}"
+    mode: "0600"
+  delegate_to: localhost
+  become: false
+  when: not netbird_owner_marker.stat.exists and not ansible_check_mode
+
+- name: Create the owner account
+  when:
+    - not netbird_owner_marker.stat.exists
+    - not ansible_check_mode
+    - netbird_running.stdout_lines is defined
+    - "'netbird-server' in netbird_running.stdout_lines"
+  block:
+    - name: Call the one-time setup API
+      ansible.builtin.uri:
+        url: "https://{{ netbird_domain }}/api/setup"
+        method: POST
+        body_format: json
+        body:
+          email: "{{ netbird_admin_email }}"
+          name: "{{ netbird_admin_name }}"
+          password: "{{ netbird_admin_password }}"
+        status_code: [200, 201]
+      no_log: true
+      register: netbird_owner
+
+    - name: Record that the owner account exists
+      ansible.builtin.file:
+        path: "{{ netbird_compose_directory }}/.owner-created"
+        state: touch
+        owner: root
+        group: root
+        mode: "0600"
+        modification_time: preserve
+        access_time: preserve
+  rescue:
+    - name: Stop on setup failure
+      ansible.builtin.fail:
+        msg: >-
+          建立管理員失敗（HTTP {{ netbird_owner.status | default('?') }}）。若是 4xx，可能已經有人先建立了帳號：
+          先執行 make class-stop 關閉服務，確認 dashboard 的使用者，無法確認就刪除 {{ netbird_compose_directory }} 與 netbird_data volume 後重新安裝。
+
+- name: Show admin login
+  ansible.builtin.debug:
+    msg: >-
+      管理員帳號已建立：https://{{ netbird_domain }} ，帳號 {{ netbird_admin_email }}，
+      密碼在管理電腦的 {{ netbird_admin_password_file }}（請移到密碼管理器）。
+      課堂外用 make class-stop 關閉 NetBird。
+  when: (netbird_owner.status | default(0)) in [200, 201]

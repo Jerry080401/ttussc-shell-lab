@@ -1,0 +1,11 @@
+# 值都從 .env 來（make 會把它們放進環境變數），這裡不用改。
+all:
+  children:
+    netbird_vps:
+      hosts:
+        netbird:
+          ansible_host: "{{ lookup('ansible.builtin.env', 'NETBIRD_SSH') | regex_replace('^.*@', '') }}"
+          ansible_user: "{{ lookup('ansible.builtin.env', 'NETBIRD_SSH') | regex_replace('@.*$', '') }}"
+          netbird_domain: "{{ lookup('ansible.builtin.env', 'NETBIRD_DOMAIN') }}"
+          netbird_public_ip: "{{ lookup('ansible.builtin.env', 'NETBIRD_PUBLIC_IP') }}"
+          netbird_letsencrypt_email: "{{ lookup('ansible.builtin.env', 'ADMIN_EMAIL') }}"
