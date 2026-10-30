@@ -3,6 +3,7 @@
 import argparse
 import dataclasses
 import json
+import subprocess
 import sys
 from pathlib import Path
 
@@ -20,6 +21,11 @@ DERIVED_FIELDS = {"management_url", "netbird_version", "image"}
 
 def _config(args):
     return load_config(args.env)
+
+
+def _active(config):
+    """Students who still get setup keys and connection commands (REVOKED_STUDENTS are left out)."""
+    return [s for s in config.students() if s not in config.revoked_students]
 
 
 def _instance(config, sid):
@@ -102,7 +108,7 @@ def cmd_passwords_export(args):
 
 
 def cmd_keys_vm(args):
-    sys.stdout.write(keys.vm_key_lines(sys.stdin.read(), _config(args).students()))
+    sys.stdout.write(keys.vm_key_lines(sys.stdin.read(), _active(_config(args))))
 
 
 def cmd_peers_import(args):
@@ -115,7 +121,7 @@ def cmd_cards(args):
     client_keys = keys.parse_setup_keys(sys.stdin.read())["clients"]
     pw = passwords.load(args.passwords)
     built = cards.build_cards(
-        config.students(), keys.load_peers(args.peers), pw, client_keys, config.management_url, args.students
+        _active(config), keys.load_peers(args.peers), pw, client_keys, config.management_url, args.students
     )
     cards.write_markdown(args.out, built)
     print(f"wrote {len(built)} students to {args.out}")
@@ -213,6 +219,6 @@ def main(argv=None):
     try:
         args.func(args)
         return 0
-    except (ValueError, OSError, KeyError) as exc:
+    except (ValueError, OSError, KeyError, subprocess.CalledProcessError) as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 2

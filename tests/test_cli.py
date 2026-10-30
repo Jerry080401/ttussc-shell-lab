@@ -212,6 +212,39 @@ class DeployFilesTest(unittest.TestCase):
         )
         self.assertEqual(result.stdout, "wrote 3 students to " + str(out) + "\n")
 
+    def test_revoked_students_get_no_key_lines_or_cards(self):
+        env = write_env(STUDENT_COUNT="3", REVOKED_STUDENTS="student02")
+        lines = labctl("--env", env, "keys", "vm", stdin=terraform_output(self.students)).stdout.split()
+        self.assertNotIn("student02", lines)
+        self.assertIn("student03", lines)
+        peers, passwords = self.dir / "peers.json", self.dir / "passwords.json"
+        labctl(
+            "--env",
+            env,
+            "peers",
+            "import",
+            "--file",
+            peers,
+            stdin="".join(f"{sid} 100.92.10.{n}\n" for n, sid in enumerate(self.students, 1)),
+        )
+        labctl("--env", env, "passwords", "new", "--file", passwords)
+        out = self.dir / "cards.md"
+        result = labctl(
+            "--env",
+            env,
+            "cards",
+            "--peers",
+            peers,
+            "--passwords",
+            passwords,
+            "--out",
+            out,
+            stdin=terraform_output(self.students),
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertNotIn("- student02\n", out.read_text(encoding="utf-8"))
+        self.assertIn("wrote 2 students", result.stdout)
+
     @unittest.skipIf(os.geteuid() == 0, "root reads any file")
     def test_password_file_readable_by_others_is_refused(self):
         passwords = self.dir / "passwords.json"
