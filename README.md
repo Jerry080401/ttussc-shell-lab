@@ -70,8 +70,6 @@ make cards      # 產生全班的連線清單 local/cards.md
 | `VM_NETWORK_POOL` | VM 用的私有網段，每台依序切一個 /28 |
 | `PROTECTED_NETWORKS` | VM 不能連的其他網段，用逗號分隔。學校或公司內網用的是公網位址時要填 |
 
-改了 `STUDENT_COUNT` 之後，依序重跑 `make keys`、`make host`、`make vms`，再接著跑後面的步驟。
-
 ## 上課
 
 ```bash
@@ -79,6 +77,16 @@ make class-start  # 上課前約 10 分鐘開 NetBird
 make status       # 看全班的 VM 和學生電腦在不在線
 make class-stop   # 下課後關 NetBird，VPS 對外只剩 SSH
 ```
+
+## 常見狀況
+
+| 狀況 | 做法 |
+|---|---|
+| 學生的 setup key 用掉了或過期 | `make renew-keys STUDENTS="student05"`，再 `make cards`。不加 `STUDENTS` 會換掉全班的 |
+| 學生想重做某一題 | `make reset-lab STUDENT=student05 LAB=05-organize`，舊的資料夾會改名留在學生的 `~/lab` |
+| 重建一位學生的 VM | 在實驗主機上 `sudo incus delete --force linux-2026-student05`（`linux-2026` 是 `COHORT`），在 NetBird 網頁刪掉這台舊的 peer，再跑 `make renew-keys KEY=vm STUDENTS="student05"` 和 `make vms enroll labs passwords cards` |
+| 撤掉一位學生 | 把 ID 加進 `REVOKED_STUDENTS`，再跑 `make keys` |
+| 學生人數改變 | 改 `STUDENT_COUNT`，再跑 `make keys host vms enroll labs passwords cards`。人數變少時，多出來的 VM 不會自動刪掉，但一樣會被隔離 |
 
 ## 課程結束
 
@@ -89,12 +97,12 @@ make class-stop
 
 VM 和學生的資料都會留著。要再上課時，重跑 `make host` 和 `make vms`。
 
-NetBird 的資料沒有備份。VPS 壞掉的話，重跑 `make netbird` 和 `make keys`，VM 和學生的電腦再重新加入。要升級 NetBird 時，改 `versions.lock.json` 的版本和映像 digest，再跑 `make netbird`。不要在上課期間升級。
+NetBird 的資料沒有備份。VPS 壞掉的話，先把 `local/terraform.tfstate*` 移到別的地方，再重跑 `make netbird`、建新的 Personal Access Token、跑 `make keys`，最後用 `make enroll` 和 `make cards` 讓 VM 和學生的電腦重新加入。要升級 NetBird 時，改 `versions.lock.json` 的版本和映像 digest，再跑 `make netbird`。不要在上課期間升級。
 
 ## 安全設計
 
-- NetBird 預設的 All 政策會被停用。每位學生只有一條規則：自己的電腦連自己的 VM，只開 TCP 22。
-- VM 之間互相隔離，也連不到實驗主機（DNS 和 DHCP 除外）、私有網段和同一個區網的設備，只能經過主機目前的預設閘道上網。這些規則有測試，會在 network namespace 裡送真的封包驗證。
+- NetBird 預設的 All 政策會被停用。每位學生只有一條規則：自己的電腦連自己的 VM，只開 TCP 22。`make keys` 跑完會用 API 檢查，確定沒有任何開著的政策用到 All 群組。
+- VM 之間互相隔離，也連不到實驗主機（DNS 和 DHCP 除外）、私有網段和同一個區網的設備，只能經過主機目前的預設閘道上網。規則套用在每一個 `tl*` 開頭的 bridge，不看名單，防火牆沒載入成功時 Incus 也不會啟動。這些規則有測試，會在 network namespace 裡送真的封包驗證。
 - 主機換了網路、閘道還沒同步時，VM 會先斷網，不會連到新網段裡的設備。
 - setup key 都是一次性的，過了 `SETUP_KEY_DAYS` 就失效。
 - 密碼和 setup key 只經過 stdin 傳到主機和 VM，不會出現在指令參數裡。
