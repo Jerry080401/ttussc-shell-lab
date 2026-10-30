@@ -30,7 +30,8 @@ read -r name bridge gateway prefix address image vcpu mem disk < <(
 
 if ! incus network show "$bridge" >/dev/null 2>&1; then
     # DHCP 只發規劃好的那一個位址。IPv6 關掉，主機防火牆也會擋。
-    incus network create "$bridge" --description "TTUSSC $sid" ipv4.address="$gateway/$prefix" \
+    # Ubuntu 24.04 的 Incus 6.0.0 還沒有 network create --description，所以不加說明。
+    incus network create "$bridge" ipv4.address="$gateway/$prefix" \
         ipv4.nat=true ipv4.dhcp.ranges="$address-$address" ipv6.address=none
 fi
 
