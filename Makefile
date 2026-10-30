@@ -23,8 +23,8 @@ export TF_VAR_revoked_students := $(REVOKED_STUDENTS)
 export TF_VAR_management_url := https://$(NETBIRD_DOMAIN)
 export TF_VAR_setup_key_days := $(SETUP_KEY_DAYS)
 
-.PHONY: help env check netbird class-start class-stop keys host vms enroll labs passwords cards status teardown \
-	test lint fmt
+.PHONY: help env check netbird class-start class-stop keys renew-keys host vms enroll labs passwords cards status \
+	reset-lab teardown test lint fmt
 
 help: ## 列出所有指令
 	@grep -E '^[a-z-]+:.*## ' $(firstword $(MAKEFILE_LIST)) | awk -F':.*## ' '{printf "  make %-12s %s\n", $$1, $$2}'
@@ -59,8 +59,17 @@ keys: check ## 建立 NetBird 群組、規則和 setup key（需要 NETBIRD_PAT�
 	policy=$$($(LABCTL) netbird default-policy); TF_VAR_default_policy_id=$$policy $(TF) apply $(TF_ARGS)
 	$(LABCTL) netbird check
 
+KEY ?= client
+renew-keys: check ## 換新的 setup key，預設換全班學生電腦的。STUDENTS="student05" 只換這幾位，KEY=vm 換 VM 的
+	@case "$(KEY)" in client | vm) ;; *) echo "KEY must be client or vm" >&2; exit 2 ;; esac
+	$(TF) init -input=false >/dev/null
+	students="$(STUDENTS)"; [ -n "$$students" ] || students=$$($(LABCTL) students); \
+	args=(); for sid in $$students; do args+=("-replace=netbird_setup_key.$(KEY)[\"$$sid\"]"); done; \
+	policy=$$($(LABCTL) netbird default-policy); TF_VAR_default_policy_id=$$policy $(TF) apply "$${args[@]}"
+	$(LABCTL) netbird check
+
+# 這些程式之後由 root 執行，解開時不保留老師電腦上的擁有者，一律歸 root。
 host: check ## 把程式和設定放到實驗主機，裝好 Incus 和隔離防火牆
-	@# 這些程式之後由 root 執行，解開時不保留老師電腦上的擁有者，一律歸 root。
 	tar -cz --exclude=__pycache__ labctl host versions.lock.json | ssh $(LAB_SSH) \
 		"sudo sh -c 'rm -rf $(HOST_DIR).new && mkdir -p $(HOST_DIR).new && tar -xz --no-same-owner -C $(HOST_DIR).new && rm -rf $(HOST_DIR) && mv $(HOST_DIR).new $(HOST_DIR)'"
 	$(LABCTL) config host-env | ssh $(LAB_SSH) "sudo sh -c 'umask 077 && mkdir -p /etc/ttussc && cat >/etc/ttussc/lab.env'"
@@ -78,6 +87,11 @@ labs: check ## 把題目放進每台 VM
 passwords: check ## 產生學生密碼（local/passwords.json）並設定到每台 VM
 	$(LABCTL) passwords new
 	$(LABCTL) passwords export | $(ON_HOST)/set-password.sh all
+
+reset-lab: check ## 重設一位學生的一題：make reset-lab STUDENT=student05 LAB=05-organize
+	@[[ "$(STUDENT)" =~ ^student[0-9]{2}$$ && "$(LAB)" =~ ^[0-9]{2}-[a-z0-9-]+$$ ]] || \
+		{ echo "usage: make reset-lab STUDENT=student05 LAB=05-organize" >&2; exit 2; }
+	$(ON_HOST)/seed-labs.sh $(STUDENT) $(LAB)
 
 cards: check ## 產生全班的連線清單 local/cards.md
 	$(TF) output -json setup_keys | $(LABCTL) cards
