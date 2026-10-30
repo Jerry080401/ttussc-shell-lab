@@ -1,0 +1,5 @@
+#!/bin/bash
+# 把 VM 能用的上游閘道同步成主機目前的預設閘道。沒有預設路由時清空，VM 就連不出去。
+# install.sh 會把這支裝成 /usr/local/sbin/ttussc-gateway-sync，由 ttussc-gateway-sync.timer 每 30 秒執行。
+set -euo pipefail
+ip -j -4 route show default | PYTHONPATH=/opt/ttussc/labs python3 -m labctl render gateway-sync | nft -f -

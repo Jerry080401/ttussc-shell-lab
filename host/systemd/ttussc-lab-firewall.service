@@ -1,0 +1,12 @@
+[Unit]
+Description=TTUSSC lab VM isolation rules (nftables table inet ttussc_lab)
+Before=incus.service incus-startup.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/sbin/nft -f /etc/ttussc/lab-firewall.nft
+ExecStartPost=-/usr/local/sbin/ttussc-gateway-sync
+
+[Install]
+WantedBy=multi-user.target

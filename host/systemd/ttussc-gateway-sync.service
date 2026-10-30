@@ -1,0 +1,8 @@
+[Unit]
+Description=Sync allowed uplink gateways for TTUSSC lab VMs
+Requires=ttussc-lab-firewall.service
+After=ttussc-lab-firewall.service network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/ttussc-gateway-sync

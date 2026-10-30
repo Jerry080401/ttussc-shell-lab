@@ -1,0 +1,10 @@
+[Unit]
+Description=Re-sync TTUSSC lab uplink gateways every 30 seconds
+
+[Timer]
+OnBootSec=15s
+OnUnitActiveSec=30s
+AccuracySec=5s
+
+[Install]
+WantedBy=timers.target
