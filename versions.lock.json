@@ -1,0 +1,25 @@
+{
+  "schema": "versions-lock/v1",
+  "checked_on": "2026-09-24",
+  "netbird_release": "v0.79.0",
+  "installer": {
+    "url": "https://github.com/netbirdio/netbird/releases/download/v0.79.0/getting-started.sh",
+    "sha256": "378e33ad4264baac46dcaca79075d4048a9a426852346655d08f95113e67d6c5"
+  },
+  "images": {
+    "netbird_server": "netbirdio/netbird-server:0.79.0@sha256:d1da0c0179c9e6f2ab7b48be54d06341b11037855a9426b9f2536aa79f13360b",
+    "dashboard": "netbirdio/dashboard:v2.93.0@sha256:b96c67fe89aaed7164513579d00565bd4326d8a5b8b8ee8c8ccf9ca7efa3f288",
+    "traefik": "traefik:v3.6@sha256:31267173a15b4944e797a76ffd9c419707c8d8b32fe5b610f80cd0cfa05f372d"
+  },
+  "control_node": {
+    "ansible_core": "2.21.4",
+    "terraform": "1.16.4"
+  },
+  "supported_vps_os": [
+    "ubuntu-24.04",
+    "ubuntu-26.04"
+  ],
+  "terraform_providers": {
+    "netbirdio/netbird": "0.0.10"
+  }
+}
