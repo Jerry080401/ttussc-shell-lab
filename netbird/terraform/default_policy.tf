@@ -20,6 +20,11 @@ resource "netbird_policy" "default_all" {
     sources       = [data.netbird_group.all.id]
     destinations  = [data.netbird_group.all.id]
   }
+
+  # 沒透過 make keys 直接跑 terraform 時 default_policy_id 是空的，不能因此把它刪掉。
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 data "netbird_group" "all" {
