@@ -39,7 +39,7 @@ LABS = [
 ]
 
 OVERVIEW = """\
-# TTUSSC Linux Lab
+# is1ab Linux Lab
 
 每一題一個資料夾，先進資料夾看說明：
 
