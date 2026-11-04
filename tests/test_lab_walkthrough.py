@@ -19,6 +19,7 @@ from labctl.labs import (
     lab06_find_real_file,
     lab07_archive,
     lab08_grep_log,
+    lab09_sort_uniq,
 )
 from labctl.plan import guest_hostname
 from tests.helpers import scratch_dir
@@ -286,6 +287,26 @@ class Lab08Test(WalkthroughCase):
         workspace = self.root / lab08_grep_log.LAB_ID
         self.assertGreater(int(sh(workspace, "grep -c user=xiaoyi service.log").stdout), 1)
         self.assertGreater(int(sh(workspace, "grep -c result=success service.log").stdout), 1)
+
+
+class Lab09Test(WalkthroughCase):
+    PIPELINE = "tail -n +2 fixes.csv | cut -d, -f2 | sort | uniq -c | sort -nr"
+
+    def test_counting_with_the_pipeline_names_the_winner(self):
+        workspace = self.root / lab09_sort_uniq.LAB_ID
+        counts = sh(workspace, self.PIPELINE).stdout.split("\n")
+        winner = counts[0].split()[1]
+        self.assertNotEqual(counts[0].split()[0], counts[1].split()[0])  # 第一名不會同分
+        self.assert_solved(sh(workspace, f"./check {winner}"), lab09_sort_uniq)
+
+    def test_a_runner_up_is_refused(self):
+        workspace = self.root / lab09_sort_uniq.LAB_ID
+        runner_up = sh(workspace, self.PIPELINE).stdout.split("\n")[1].split()[1]
+        result = sh(workspace, f"./check {runner_up}")
+        self.assertEqual(result.returncode, 1)
+        self.assertNotIn("is1ab{", result.stdout)
+        for line in result.stdout.splitlines():
+            self.assertLessEqual(columns(line), TERMINAL_COLUMNS, line)
 
 
 if __name__ == "__main__":
