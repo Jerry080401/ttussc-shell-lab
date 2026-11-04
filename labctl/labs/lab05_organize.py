@@ -8,7 +8,7 @@ from labctl.labs.answer_check import seal
 
 LAB_ID = "05-organize"
 TITLE = "整理倉庫"
-FLAG = "TTUSSC{rm_has_no_recycle_bin}"
+FLAG = "is1ab{rm_has_no_recycle_bin}"
 
 README = """\
 # 05 整理倉庫

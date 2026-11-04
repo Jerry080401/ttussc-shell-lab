@@ -4,7 +4,7 @@ from labctl.labs import art
 
 LAB_ID = "11-chmod"
 TITLE = "我有檔案，但我打不開"
-FLAG = "TTUSSC{chmod_gave_me_the_key}"
+FLAG = "is1ab{chmod_gave_me_the_key}"
 
 README = """\
 # 11 我有檔案，但我打不開

@@ -6,7 +6,7 @@ from labctl.plan import guest_hostname
 
 LAB_ID = "01-check-in"
 TITLE = "報到"
-FLAG = "TTUSSC{whoami_is_a_deep_question}"
+FLAG = "is1ab{whoami_is_a_deep_question}"
 
 README = """\
 # 01 報到

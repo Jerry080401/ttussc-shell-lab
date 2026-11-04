@@ -22,7 +22,7 @@
 
 每個學生的 `~/lab/` 有一份總覽 `README.md`，每題一個資料夾，裡面的 `README.md` 寫故事、要做的事和提示。檔名用英文，因為學生在終端機裡不一定打得出中文。
 
-解開會拿到 flag，格式是 `TTUSSC{...}`，內容是一句跟這題有關的英文。第 1、2、3、5、9、10、12 題的 flag 是用正確答案推出來的金鑰加密的，要照題目用對方法跑附的程式才會印出來，直接 `grep` 找不到。
+解開會拿到 flag，格式是 `is1ab{...}`，內容是一句跟這題有關的英文。第 1、2、3、5、9、10、12 題的 flag 是用正確答案推出來的金鑰加密的，要照題目用對方法跑附的程式才會印出來，直接 `grep` 找不到。
 
 除了第 8 題，答對時會一起印出一張點陣圖，左邊是照社團 logo 描的牛仔帽企鵝，右邊是跟這題有關的道具（`labctl/labs/art.py`）。第 8 題的 flag 寫在 log 的其中一行，放不下圖。第 6 題每個箱子都印著同一張圖，不然 grep 圖案就找得到真的箱子。
 
@@ -34,19 +34,19 @@ flag 放在學生自己的 VM 裡，有心的學生可以去讀 `check` 的原�
 
 | 題號 | 題目 | flag |
 |---|---|---|
-| 01 | 報到 | `TTUSSC{whoami_is_a_deep_question}` |
-| 02 | 看說明書 | `TTUSSC{always_read_the_manual}` |
-| 03 | 迷宮裡的門 | `TTUSSC{absolute_paths_never_get_lost}` |
-| 04 | 企鵝把檔案藏起來了 | `TTUSSC{dotfiles_are_just_shy}` |
-| 05 | 整理倉庫 | `TTUSSC{rm_has_no_recycle_bin}` |
-| 06 | 倉庫裡只有一份真的 | `TTUSSC{one_real_box_among_many_fakes}` |
-| 07 | 壓縮包裡還有一層 | `TTUSSC{never_trust_a_file_extension}` |
-| 08 | 企鵝只登入成功一次 | `TTUSSC{grep_finds_the_needle}` |
-| 09 | 誰偷吃最多條魚 | `TTUSSC{sort_before_you_uniq}` |
-| 10 | 叫醒企鵝 | `TTUSSC{kill_just_sends_a_signal}` |
-| 11 | 我有檔案，但我打不開 | `TTUSSC{chmod_gave_me_the_key}` |
-| 12 | 設定檔差在哪 | `TTUSSC{spot_the_difference_with_diff}` |
-| 13 | 被刪掉的日記 | `TTUSSC{git_never_forgets}` |
+| 01 | 報到 | `is1ab{whoami_is_a_deep_question}` |
+| 02 | 看說明書 | `is1ab{always_read_the_manual}` |
+| 03 | 迷宮裡的門 | `is1ab{absolute_paths_never_get_lost}` |
+| 04 | 企鵝把檔案藏起來了 | `is1ab{dotfiles_are_just_shy}` |
+| 05 | 整理倉庫 | `is1ab{rm_has_no_recycle_bin}` |
+| 06 | 倉庫裡只有一份真的 | `is1ab{one_real_box_among_many_fakes}` |
+| 07 | 壓縮包裡還有一層 | `is1ab{never_trust_a_file_extension}` |
+| 08 | 企鵝只登入成功一次 | `is1ab{grep_finds_the_needle}` |
+| 09 | 誰偷吃最多條魚 | `is1ab{sort_before_you_uniq}` |
+| 10 | 叫醒企鵝 | `is1ab{kill_just_sends_a_signal}` |
+| 11 | 我有檔案，但我打不開 | `is1ab{chmod_gave_me_the_key}` |
+| 12 | 設定檔差在哪 | `is1ab{spot_the_difference_with_diff}` |
+| 13 | 被刪掉的日記 | `is1ab{git_never_forgets}` |
 
 ## 題目資料
 
@@ -57,7 +57,7 @@ python3 -m labctl labs build student01 --out /tmp/lab-student01   # 目標資料
 python3 -m labctl labs flags
 ```
 
-第 6、8 題的假 flag 是 16 位十六進位的亂碼，真的是一句話，所以 `grep TTUSSC` 一眼就看得出哪個是真的。這是刻意保留的，上課時請學生照題目要求用 `find` 和 `grep` 的條件找。
+第 6、8 題的假 flag 是 16 位十六進位的亂碼，真的是一句話，所以 `grep is1ab` 一眼就看得出哪個是真的。這是刻意保留的，上課時請學生照題目要求用 `find` 和 `grep` 的條件找。
 
 ## 改題目
 

@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 
 LAB_ID = "08-grep-log"
 TITLE = "企鵝只登入成功一次"
-FLAG = "TTUSSC{grep_finds_the_needle}"
+FLAG = "is1ab{grep_finds_the_needle}"
 
 README = """\
 # 08 企鵝只登入成功一次
@@ -32,7 +32,7 @@ LINES = 200_000  # 用 less 或捲動翻不完（約 25 MB），只能用 grep �
 
 
 def _fake_flag(rng):
-    return "TTUSSC{" + format(rng.getrandbits(64), "016x") + "}"
+    return "is1ab{" + format(rng.getrandbits(64), "016x") + "}"
 
 
 def seed(ws, flag, rng, student_id):

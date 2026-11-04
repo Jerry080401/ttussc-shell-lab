@@ -4,12 +4,12 @@ from labctl.labs import art
 
 LAB_ID = "06-find-real-file"
 TITLE = "倉庫裡只有一份真的"
-FLAG = "TTUSSC{one_real_box_among_many_fakes}"
+FLAG = "is1ab{one_real_box_among_many_fakes}"
 
 README = """\
 # 06 倉庫裡只有一份真的
 
-魚倉庫 `warehouse/` 裡堆滿了箱子，每個箱子上都寫著一組 `TTUSSC{{...}}`，但只有一份是真的。
+魚倉庫 `warehouse/` 裡堆滿了箱子，每個箱子上都寫著一組 `is1ab{{...}}`，但只有一份是真的。
 
 ## 線索
 
@@ -43,7 +43,7 @@ def _box(label, flag, size):
 
 
 def _fake_flag(rng):
-    return "TTUSSC{" + "".join(rng.choice("0123456789abcdef") for _ in range(16)) + "}"
+    return "is1ab{" + "".join(rng.choice("0123456789abcdef") for _ in range(16)) + "}"
 
 
 def seed(ws, flag, rng, student_id):

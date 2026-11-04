@@ -5,7 +5,7 @@ from labctl.labs.answer_check import render_check
 
 LAB_ID = "12-diff-config"
 TITLE = "加分：設定檔差在哪"
-FLAG = "TTUSSC{spot_the_difference_with_diff}"
+FLAG = "is1ab{spot_the_difference_with_diff}"
 
 README = """\
 # 12 加分：設定檔差在哪

@@ -7,7 +7,7 @@ from labctl.labs.answer_check import render_check
 
 LAB_ID = "09-sort-uniq"
 TITLE = "誰偷吃最多條魚"
-FLAG = "TTUSSC{sort_before_you_uniq}"
+FLAG = "is1ab{sort_before_you_uniq}"
 
 README = """\
 # 09 誰偷吃最多條魚

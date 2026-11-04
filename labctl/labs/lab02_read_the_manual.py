@@ -7,7 +7,7 @@ from labctl.labs.answer_check import seal
 
 LAB_ID = "02-read-the-manual"
 TITLE = "看說明書"
-FLAG = "TTUSSC{always_read_the_manual}"
+FLAG = "is1ab{always_read_the_manual}"
 
 README = """\
 # 02 看說明書

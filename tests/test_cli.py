@@ -129,7 +129,7 @@ class LabsCommandTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertTrue((out / "README.md").is_file())
         self.assertEqual(len([p for p in out.iterdir() if p.is_dir()]), 13)
-        self.assertNotIn("TTUSSC{", result.stdout)  # 產生題目時不印出答案
+        self.assertNotIn("is1ab{", result.stdout)  # 產生題目時不印出答案
 
     def test_build_rejects_student_not_in_class(self):
         out = scratch_dir() / "lab"

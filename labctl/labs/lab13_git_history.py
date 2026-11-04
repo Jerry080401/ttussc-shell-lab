@@ -7,7 +7,7 @@ from labctl.labs import art
 
 LAB_ID = "13-git-history"
 TITLE = "加分：被刪掉的日記"
-FLAG = "TTUSSC{git_never_forgets}"
+FLAG = "is1ab{git_never_forgets}"
 
 README = """\
 # 13 加分：被刪掉的日記

@@ -4,7 +4,7 @@ from labctl.labs import art
 
 LAB_ID = "04-hidden-file"
 TITLE = "企鵝把檔案藏起來了"
-FLAG = "TTUSSC{dotfiles_are_just_shy}"
+FLAG = "is1ab{dotfiles_are_just_shy}"
 
 README = """\
 # 04 企鵝把檔案藏起來了
@@ -22,7 +22,7 @@ README = """\
 - 名字以 `.` 開頭的檔案是「隱藏檔」，要用 `ls -a` 才看得到。
 - `cd ..` 回到上一層，`cd ~/lab/04-hidden-file` 回到這一題的起點。
 
-讀到 `TTUSSC{...}` 就完成了，把它記下來。
+讀到 `is1ab{...}` 就完成了，把它記下來。
 """
 
 AREAS = {
