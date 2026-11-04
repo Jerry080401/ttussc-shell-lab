@@ -6,6 +6,7 @@ import shutil
 import subprocess
 import unicodedata
 import unittest
+from pathlib import Path
 
 from labctl.labs import (
     build_labs,
@@ -14,6 +15,7 @@ from labctl.labs import (
     lab03_paths,
     lab04_hidden_file,
     lab05_organize,
+    lab06_find_real_file,
 )
 from labctl.plan import guest_hostname
 from tests.helpers import scratch_dir
@@ -215,6 +217,23 @@ class Lab05Test(WalkthroughCase):
         sh(workspace, "rm -f nest/* map.txt; ./check")
         script = "mkdir box && mv nest/*.silk box && cp map.txt map.bak && ./check"
         self.assert_solved(sh(workspace, script), lab05_organize)
+
+
+class Lab06Test(WalkthroughCase):
+    def test_find_with_both_conditions_finds_exactly_the_real_item(self):
+        workspace = self.root / lab06_find_real_file.LAB_ID
+        size = re.search(r"檔案大小 (\d+) 位元組", (workspace / "README.md").read_text(encoding="utf-8")).group(1)
+        found = sh(workspace, f"find storage -name '*.silk' -size {size}c").stdout.split()
+        self.assertEqual(len(found), 1)
+        result = sh(workspace, f"cat {found[0]}")
+        self.assert_solved(result, lab06_find_real_file)
+        self.assertEqual(int(size), Path(workspace / found[0]).stat().st_size)
+
+    def test_one_condition_alone_is_not_enough(self):
+        workspace = self.root / lab06_find_real_file.LAB_ID
+        size = re.search(r"檔案大小 (\d+) 位元組", (workspace / "README.md").read_text(encoding="utf-8")).group(1)
+        self.assertGreater(len(sh(workspace, "find storage -name '*.silk'").stdout.split()), 1)
+        self.assertGreater(len(sh(workspace, f"find storage -size {size}c").stdout.split()), 1)
 
 
 if __name__ == "__main__":

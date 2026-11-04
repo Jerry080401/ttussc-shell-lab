@@ -3,20 +3,20 @@
 from labctl.labs import art
 
 LAB_ID = "06-find-real-file"
-TITLE = "倉庫裡只有一份真的"
-FLAG = "is1ab{one_real_box_among_many_fakes}"
+TITLE = "找出那束好絲"
+FLAG = "is1ab{one_real_item_among_many_fakes}"
 
 README = """\
-# 06 倉庫裡只有一份真的
+# 06 找出那束好絲
 
-魚倉庫 `warehouse/` 裡堆滿了箱子，每個箱子上都寫著一組 `is1ab{{...}}`，但只有一份是真的。
+小壹要補網，請你去儲藏室 `storage/` 領一束絲。裡面的絲束看起來都一樣，每束都掛著一組 `is1ab{{...}}` 標籤，但只有一束符合訂單。
 
-## 線索
+## 訂單
 
-真的那一份：
+要領的那一束：
 
-- 檔名以 `.fish` 結尾
-- 大小剛好 {size} 位元組（bytes）
+- 種類是蜘蛛絲：檔名以 `.silk` 結尾
+- 長度剛好：檔案大小 {size} 位元組（bytes）
 
 ## 你要做的事
 
@@ -24,22 +24,29 @@ README = """\
 
 ## 提示
 
-- `find 資料夾 -name '*.fish'` 依檔名找。
-- `find 資料夾 -size 100c` 找大小剛好 100 位元組的檔案（`c` 代表位元組）。
-- 兩個條件可以寫在同一個 `find` 指令裡。
+- `find 資料夾 條件` 會在資料夾裡一層一層往下找。常用的條件有：
+  - `-name 檔名`：依檔名找，檔名可以用 `*` 代表任意文字，例如 `-name '*.txt'`（記得加引號）
+  - `-type f`：只找檔案，`-type d`：只找資料夾
+  - `-size 100c`：大小剛好 100 位元組（`c` 代表位元組，`k` 代表 KB）
+  - `-size +100c`：比 100 位元組大，`-size -100c`：比 100 位元組小
+- 條件可以寫很多個，要全部符合才會列出來。
 """
 
-EXTENSIONS = ("fish", "food", "ice")
-# 每個箱子都印著同一張圖（只放真箱子的話，grep 圖就能繞過 find），大小從圖的大小往上加。
+EXTENSIONS = ("silk", "rope", "string")
+# 每束都印著同一張圖（只放真的那束的話，grep 圖就能繞過 find），大小從圖的大小往上加。
 PICTURE = art.render(LAB_ID)
 BASE = len(PICTURE.encode("utf-8"))
+PADDING_WIDTH = 39
 
 
-def _box(label, flag, size):
-    head = (PICTURE + f"\n箱子 {label}\n內容物：{flag}\n").encode("utf-8")
-    if len(head) >= size:
-        raise ValueError("box too small for its label")
-    return head + b"~" * (size - len(head) - 1) + b"\n"
+def _item(label, flag, size):
+    # 填充放在前面、切成短行：cat 的時候 flag 留在畫面最下面，不會被推走。
+    tail = (PICTURE + f"\n絲束 {label}\n標籤：{flag}\n").encode("utf-8")
+    if len(tail) >= size:
+        raise ValueError("item too small for its label")
+    padding = size - len(tail)
+    full, rest = divmod(padding, PADDING_WIDTH + 1)
+    return (b"~" * PADDING_WIDTH + b"\n") * full + (b"~" * (rest - 1) + b"\n" if rest else b"") + tail
 
 
 def _fake_flag(rng):
@@ -49,17 +56,17 @@ def _fake_flag(rng):
 def seed(ws, flag, rng, student_id):
     real_size = BASE + rng.randint(1000, 1999)
     ws.write("README.md", README.format(size=real_size))
-    shelves = [f"{area}/{shelf}" for area in ("north", "south", "east", "west") for shelf in ("a", "b", "c")]
-    # 至少 4 個「副檔名對、大小錯」與 4 個「大小對、副檔名錯」的干擾箱。
-    kinds = ["real"] + ["fish-wrong-size"] * 4 + ["right-size-wrong-ext"] * 4 + ["random"] * 27
+    shelves = [f"box{number}" for number in range(1, 13)]
+    # 至少 4 束「副檔名對、大小錯」與 4 束「大小對、副檔名錯」的干擾。
+    kinds = ["real"] + ["silk-wrong-size"] * 4 + ["right-size-wrong-ext"] * 4 + ["random"] * 27
     rng.shuffle(kinds)
     for number, kind in enumerate(kinds, start=100):
         shelf = shelves[number % len(shelves)]
         if kind == "real":
-            ext, size, content_flag = "fish", real_size, flag
-        elif kind == "fish-wrong-size":
+            ext, size, content_flag = "silk", real_size, flag
+        elif kind == "silk-wrong-size":
             ext, size, content_flag = (
-                "fish",
+                "silk",
                 rng.choice([real_size - rng.randint(1, 300), real_size + rng.randint(1, 300)]),
                 _fake_flag(rng),
             )
@@ -71,4 +78,4 @@ def seed(ws, flag, rng, student_id):
             while size == real_size:
                 size = BASE + rng.randint(800, 2300)
             content_flag = _fake_flag(rng)
-        ws.write(f"warehouse/{shelf}/box-{number}.{ext}", _box(number, content_flag, size))
+        ws.write(f"storage/{shelf}/item-{number}.{ext}", _item(number, content_flag, size))

@@ -9,7 +9,7 @@
 | 03 | 路徑與目錄 | 送信到樹洞 | `pwd`、`cd`、絕對和相對路徑 | 在森林裡找到信箱，站在郵局用絕對路徑呼叫它 |
 | 04 | 檔案操作 | 葉子背面的便條 | `ls -a`、`cat` | 找到隱藏檔 |
 | 05 | 檔案操作 | 大掃除 | `mkdir`、`mv`、`rm`、`cp`、萬用字元 | 整理好之後用 `check` 檢查 |
-| 06 | 檔案操作 | 倉庫裡只有一份真的 | `find`、檔名和大小條件 | 找到符合線索的檔案 |
+| 06 | 檔案操作 | 找出那束好絲 | `find`、檔名和大小條件 | 找到符合線索的檔案 |
 | 07 | 檔案操作 | 壓縮包裡還有一層 | `file`、`tar`、`gzip` | 一層一層解開壓縮檔 |
 | 08 | 管線與重導向 | 企鵝只登入成功一次 | `grep`、`less`、pipe | 在 log 裡找出唯一一次成功的登入 |
 | 09 | 資料處理 | 誰偷吃最多條魚 | `cut`、`sort`、`uniq -c`、pipe | 算出答案交給 `check` |
@@ -24,7 +24,7 @@
 
 解開會拿到 flag，格式是 `is1ab{...}`，內容是一句跟這題有關的英文。第 1、2、3、5、9、10、12 題的 flag 是用正確答案推出來的金鑰加密的，要照題目用對方法跑附的程式才會印出來，直接 `grep` 找不到。
 
-除了第 8 題，答對時會一起印出一張點陣圖，左邊是參考社團 logo 畫的蜘蛛，右邊是跟這題有關的道具（`labctl/labs/art.py`）。第 8 題的 flag 寫在 log 的其中一行，放不下圖。第 6 題每個箱子都印著同一張圖，不然 grep 圖案就找得到真的箱子。
+除了第 8 題，答對時會一起印出一張點陣圖，左邊是參考社團 logo 畫的蜘蛛，右邊是跟這題有關的道具（`labctl/labs/art.py`）。第 8 題的 flag 寫在 log 的其中一行，放不下圖。第 6 題每束絲都印著同一張圖，不然 grep 圖案就找得到真的那一束。
 
 第 5 題要學生留下絲線、露水和地圖。VM 開機時會把 `rm` 的保護裝到 `/etc/profile.d/is1ab-lab-rm.sh`，學生用 `rm` 刪這些東西會被擋下並看到原因。用 `command rm` 硬刪的話，`./check` 會放回去。
 
@@ -41,7 +41,7 @@ flag 放在學生自己的 VM 裡，有心的學生可以去讀 `check` 的原�
 | 03 | 送信到樹洞 | `is1ab{absolute_paths_never_get_lost}` |
 | 04 | 葉子背面的便條 | `is1ab{dotfiles_are_just_shy}` |
 | 05 | 大掃除 | `is1ab{rm_has_no_recycle_bin}` |
-| 06 | 倉庫裡只有一份真的 | `is1ab{one_real_box_among_many_fakes}` |
+| 06 | 找出那束好絲 | `is1ab{one_real_item_among_many_fakes}` |
 | 07 | 壓縮包裡還有一層 | `is1ab{never_trust_a_file_extension}` |
 | 08 | 企鵝只登入成功一次 | `is1ab{grep_finds_the_needle}` |
 | 09 | 誰偷吃最多條魚 | `is1ab{sort_before_you_uniq}` |
