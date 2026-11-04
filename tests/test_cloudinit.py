@@ -5,6 +5,7 @@ import tempfile
 import unittest
 
 from labctl.cloudinit import CHINESE_PACKAGES, SWITCH_TO_GNU_COREUTILS, render_user_data
+from labctl.labs.lab05_organize import RM_GUARD
 from labctl.plan import build_plan
 from tests.helpers import example_config
 
@@ -52,6 +53,11 @@ class CloudConfigTest(unittest.TestCase):
 
     def test_hostname_is_per_student(self):
         self.assertEqual(parsed(render_user_data(instance("student02")))["hostname"], "lab-student02")
+
+    def test_installs_the_rm_guard_for_lab_05(self):
+        doc = parsed(render_user_data(instance()))
+        files = {f["path"]: f for f in doc["write_files"]}
+        self.assertEqual(files["/etc/profile.d/is1ab-lab-rm.sh"]["content"], RM_GUARD)
 
     def test_only_the_student_account_is_created(self):
         doc = parsed(render_user_data(instance()))

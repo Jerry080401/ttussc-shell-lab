@@ -6,6 +6,8 @@ inside the guest. Credentials are set later over stdin by the host tooling.
 
 import json
 
+from labctl.labs.lab05_organize import RM_GUARD
+
 PACKAGES = [
     # 映像只有最小系統（ubuntu-minimal），ubuntu-standard 補上一般 Ubuntu Server 的常用工具。
     "ubuntu-standard",
@@ -108,6 +110,12 @@ def render_user_data(instance):
                 "owner": "root:root",
                 "permissions": "0644",
                 "content": _locale_profile(locale),
+            },
+            {
+                "path": "/etc/profile.d/is1ab-lab-rm.sh",
+                "owner": "root:root",
+                "permissions": "0644",
+                "content": RM_GUARD,
             },
         ],
         # runcmd 在套件安裝之後才執行。

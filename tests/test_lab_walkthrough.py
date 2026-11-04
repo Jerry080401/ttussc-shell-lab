@@ -1,12 +1,20 @@
 """用學生會打的指令實際解題：每題都要拿到 is1ab{...}，畫面也要放得進 80 欄的終端機。"""
 
 import re
+import shlex
 import shutil
 import subprocess
 import unicodedata
 import unittest
 
-from labctl.labs import build_labs, lab01_check_in, lab02_read_the_manual, lab03_paths, lab04_hidden_file
+from labctl.labs import (
+    build_labs,
+    lab01_check_in,
+    lab02_read_the_manual,
+    lab03_paths,
+    lab04_hidden_file,
+    lab05_organize,
+)
 from labctl.plan import guest_hostname
 from tests.helpers import scratch_dir
 
@@ -126,6 +134,87 @@ class Lab04Test(WalkthroughCase):
         self.assertEqual(len(notes), 1)
         self.assertIn(".note", sh(notes[0].parent, "ls -a").stdout)
         self.assert_solved(sh(notes[0].parent, "cat .note"), lab04_hidden_file)
+
+
+class Lab05Test(WalkthroughCase):
+    def fresh_workspace(self):
+        root = scratch_dir() / "lab"
+        build_labs(root, b"s" * 32, "linux-2026", "student05")
+        return root / lab05_organize.LAB_ID
+
+    def test_the_readme_commands_print_the_flag(self):
+        workspace = self.fresh_workspace()
+        script = "mkdir box && mv nest/*.silk box && rm nest/*.leaf && cp map.txt map.bak && ./check"
+        self.assert_solved(sh(workspace, script), lab05_organize)
+
+    def test_check_names_what_is_left_to_do(self):
+        result = sh(self.fresh_workspace(), "./check")
+        self.assertEqual(result.returncode, 1)
+        for hint in ("mkdir", "束絲線沒搬", ".leaf", "map.bak"):
+            self.assertIn(hint, result.stdout)
+        self.assertNotIn("is1ab{", result.stdout)
+
+    def guarded(self, workspace, script):
+        """像學生的 shell 一樣裝好 rm 的保護，在這題的資料夾執行。"""
+        setup = lab05_organize.RM_GUARD + f"HOME={shlex.quote(str(workspace.parent.parent))}\n"
+        return subprocess.run(["bash", "-c", setup + script], cwd=workspace, capture_output=True, text=True)
+
+    def test_rm_refuses_things_to_keep_and_says_why(self):
+        workspace = self.fresh_workspace()
+        before = sorted(path.name for path in (workspace / "nest").iterdir())
+        for target, reason in (
+            ("nest/*.silk", "絲"),
+            ("nest/*.water", "露水"),
+            ("map.txt", "地圖"),
+            ("nest/*", "不能刪"),
+            ("-r nest", "絲線或露水"),
+            ("-rf .", "絲線或露水"),
+            ("-rf ~/lab", "整個巢穴"),
+        ):
+            result = self.guarded(workspace, f"rm {target}")
+            self.assertEqual(result.returncode, 1, target)
+            self.assertIn(reason, result.stderr, target)
+            self.assertIn("什麼都沒有刪", result.stderr, target)
+            for line in result.stderr.splitlines():
+                self.assertLessEqual(columns(line), TERMINAL_COLUMNS, target)
+        self.assertEqual(sorted(path.name for path in (workspace / "nest").iterdir()), before)
+        self.assertTrue((workspace / "map.txt").exists())
+
+    def test_rm_still_deletes_the_leaves_and_other_files(self):
+        workspace = self.fresh_workspace()
+        script = "mkdir box && mv nest/*.silk box && rm nest/*.leaf && cp map.txt map.bak && ./check"
+        self.assert_solved(self.guarded(workspace, script), lab05_organize)
+        self.assertEqual(self.guarded(workspace, "mkdir empty && rm -r empty && rm map.bak").returncode, 0)
+        self.assertFalse((workspace / "map.bak").exists())
+
+    def test_rm_outside_this_lab_is_not_touched(self):
+        workspace = self.fresh_workspace()
+        other = scratch_dir()
+        (other / "red.silk").write_text("not the lab\n")
+        self.assertEqual(self.guarded(workspace, f"rm {other}/red.silk").returncode, 0)
+        self.assertFalse((other / "red.silk").exists())
+
+    def test_box_inside_nest_does_not_duplicate_the_silk(self):
+        workspace = self.fresh_workspace()
+        result = sh(workspace, "mkdir nest/box && mv nest/*.silk nest/box && ./check")
+        self.assertIn("box 建到 nest 裡面", result.stdout)
+        self.assertNotIn("不能丟", result.stdout)
+        self.assertEqual(list((workspace / "nest").glob("*.silk")), [])
+
+    def test_deleted_silk_and_water_come_back_with_a_warning(self):
+        workspace = self.fresh_workspace()
+        before = {path.name: path.read_bytes() for path in (workspace / "nest").iterdir() if path.suffix != ".leaf"}
+        result = sh(workspace, "rm -f nest/*.silk nest/*.water; ./check")
+        self.assertEqual(result.returncode, 1)
+        self.assertNotIn("is1ab{", result.stdout)
+        after = {path.name: path.read_bytes() for path in (workspace / "nest").iterdir()}
+        self.assertEqual({name: after.get(name) for name in before}, before)
+
+    def test_can_still_finish_after_deleting_everything(self):
+        workspace = self.fresh_workspace()
+        sh(workspace, "rm -f nest/* map.txt; ./check")
+        script = "mkdir box && mv nest/*.silk box && cp map.txt map.bak && ./check"
+        self.assert_solved(sh(workspace, script), lab05_organize)
 
 
 if __name__ == "__main__":
