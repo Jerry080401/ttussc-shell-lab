@@ -23,6 +23,7 @@ from labctl.labs import (
     lab09_sort_uniq,
     lab10_signals,
     lab11_chmod,
+    lab12_diff_config,
 )
 from labctl.plan import guest_hostname
 from tests.helpers import scratch_dir
@@ -349,6 +350,31 @@ class Lab11Test(WalkthroughCase):
         if os.geteuid() != 0:  # root 不受檔案權限限制
             self.assertNotEqual(sh(workspace, "cat locked.txt").returncode, 0)
         self.assert_solved(sh(workspace, "chmod u+r locked.txt && cat locked.txt"), lab11_chmod)
+
+
+class Lab12Test(WalkthroughCase):
+    def fresh_workspace(self):
+        workspace = scratch_dir() / "lab12"
+        shutil.copytree(self.root / lab12_diff_config.LAB_ID, workspace)
+        return workspace
+
+    def test_diff_shows_three_wrong_lines_and_check_refuses_until_fixed(self):
+        workspace = self.fresh_workspace()
+        diff = sh(workspace, "diff web.conf expected.conf")
+        self.assertEqual(diff.returncode, 1)
+        self.assertEqual(len([line for line in diff.stdout.splitlines() if line.startswith("<")]), 3)
+        result = sh(workspace, "./check")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("diff", result.stdout)
+        self.assertNotIn("is1ab{", result.stdout)
+
+    def test_fixing_each_line_from_the_diff_prints_the_flag(self):
+        workspace = self.fresh_workspace()
+        for line in sh(workspace, "diff web.conf expected.conf").stdout.splitlines():
+            if line.startswith(">"):
+                key = line[2:].split(" = ")[0]
+                sh(workspace, f"sed -i 's/^{key} = .*/{line[2:]}/' web.conf")
+        self.assert_solved(sh(workspace, "./check"), lab12_diff_config)
 
 
 if __name__ == "__main__":
