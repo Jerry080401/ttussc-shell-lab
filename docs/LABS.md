@@ -7,7 +7,7 @@
 | 01 | 環境準備 | 新朋友報到 | `whoami`、`hostname`、參數 | 把帳號和主機名稱交給 `check` |
 | 02 | 環境準備 | 蛛絲電話 | `--help`、`man`、長短選項 | 從 man page 找到線路，用 `phone` 接線並解碼 |
 | 03 | 路徑與目錄 | 送信到樹洞 | `pwd`、`cd`、絕對和相對路徑 | 在森林裡找到信箱，站在郵局用絕對路徑呼叫它 |
-| 04 | 檔案操作 | 企鵝把檔案藏起來了 | `ls -a`、`cat` | 找到隱藏檔 |
+| 04 | 檔案操作 | 葉子背面的便條 | `ls -a`、`cat` | 找到隱藏檔 |
 | 05 | 檔案操作 | 整理倉庫 | `mkdir`、`mv`、`rm`、`cp`、萬用字元 | 整理好之後用 `check` 檢查 |
 | 06 | 檔案操作 | 倉庫裡只有一份真的 | `find`、檔名和大小條件 | 找到符合線索的檔案 |
 | 07 | 檔案操作 | 壓縮包裡還有一層 | `file`、`tar`、`gzip` | 一層一層解開壓縮檔 |
@@ -37,7 +37,7 @@ flag 放在學生自己的 VM 裡，有心的學生可以去讀 `check` 的原�
 | 01 | 新朋友報到 | `is1ab{whoami_is_a_deep_question}` |
 | 02 | 蛛絲電話 | `is1ab{always_read_the_manual}` |
 | 03 | 送信到樹洞 | `is1ab{absolute_paths_never_get_lost}` |
-| 04 | 企鵝把檔案藏起來了 | `is1ab{dotfiles_are_just_shy}` |
+| 04 | 葉子背面的便條 | `is1ab{dotfiles_are_just_shy}` |
 | 05 | 整理倉庫 | `is1ab{rm_has_no_recycle_bin}` |
 | 06 | 倉庫裡只有一份真的 | `is1ab{one_real_box_among_many_fakes}` |
 | 07 | 壓縮包裡還有一層 | `is1ab{never_trust_a_file_extension}` |

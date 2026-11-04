@@ -6,7 +6,7 @@ import subprocess
 import unicodedata
 import unittest
 
-from labctl.labs import build_labs, lab01_check_in, lab02_read_the_manual, lab03_paths
+from labctl.labs import build_labs, lab01_check_in, lab02_read_the_manual, lab03_paths, lab04_hidden_file
 from labctl.plan import guest_hostname
 from tests.helpers import scratch_dir
 
@@ -116,6 +116,16 @@ class Lab03Test(WalkthroughCase):
         self.assertEqual(result.returncode, 1)
         self.assertIn("post-office", result.stdout)
         self.assertNotIn("is1ab{", result.stdout)
+
+
+class Lab04Test(WalkthroughCase):
+    def test_plain_ls_shows_no_note_and_ls_a_finds_exactly_one(self):
+        workspace = self.root / lab04_hidden_file.LAB_ID
+        self.assertEqual(sh(workspace, "ls *-tree/branch | grep -c note").stdout.strip(), "0")
+        notes = list(workspace.rglob(".note"))
+        self.assertEqual(len(notes), 1)
+        self.assertIn(".note", sh(notes[0].parent, "ls -a").stdout)
+        self.assert_solved(sh(notes[0].parent, "cat .note"), lab04_hidden_file)
 
 
 if __name__ == "__main__":

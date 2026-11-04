@@ -3,46 +3,39 @@
 from labctl.labs import art
 
 LAB_ID = "04-hidden-file"
-TITLE = "企鵝把檔案藏起來了"
+TITLE = "葉子背面的便條"
 FLAG = "is1ab{dotfiles_are_just_shy}"
 
 README = """\
-# 04 企鵝把檔案藏起來了
+# 04 葉子背面的便條
 
-企鵝 Tux 把日記藏在這個資料夾裡的某個地方，還特地取了一個「一般 ls 看不到」的名字。
+小壹寫了一張便條給你，怕被風吹走，就收在某棵樹的葉子背面。名字以 `.` 開頭的檔案平常看不到，就像藏在葉子背面。
 
 ## 你要做的事
 
-1. 用 `pwd` 確認你現在在哪裡。
-2. 用 `ls` 看看有哪些資料夾，再用 `cd` 走進去找。
-3. 找到日記後，用 `cat` 讀出內容。
+走到每一棵樹上找找看，找到便條就讀出來。讀到 `is1ab{...}` 就完成了，把它記下來。
 
 ## 提示
 
-- 名字以 `.` 開頭的檔案是「隱藏檔」，要用 `ls -a` 才看得到。
+- 葉子都長在每棵樹的樹枝 `branch` 上。
+- `ls` 有很多選項：`-l` 顯示詳細資料，`-a` 連隱藏檔也列出來，`-t` 依時間排序。
 - `cd ..` 回到上一層，`cd ~/lab/04-hidden-file` 回到這一題的起點。
-
-讀到 `is1ab{...}` 就完成了，把它記下來。
 """
 
-AREAS = {
-    "glacier": ("冰河", "cave"),
-    "iceberg": ("冰山", "tunnel"),
-    "snowfield": ("雪原", "igloo"),
-}
+TREES = {"apple-tree": "蘋果樹", "lemon-tree": "檸檬樹", "orange-tree": "橘子樹"}
 
 
 def seed(ws, flag, rng, student_id):
     ws.write("README.md", README)
-    hiding_place = rng.choice(sorted(AREAS))
-    for area, (name, nook) in sorted(AREAS.items()):
-        ws.write(f"{area}/note.txt", f"這裡是{name}。風很大，什麼都沒有。\n")
-        ws.write(f"{area}/fish.txt", "".join(f"魚 #{rng.randint(1, 99)}\n" for _ in range(rng.randint(3, 6))))
-        ws.write(f"{area}/{nook}/rock.txt", "只是一塊石頭。\n")
-        if area == hiding_place:
+    hiding_place = rng.choice(sorted(TREES))
+    for tree, name in sorted(TREES.items()):
+        ws.write(f"{tree}/sign", art.item("tree") + f"\n這裡是{name}，樹枝上有很多葉子。\n")
+        ws.write(f"{tree}/branch/leaf", art.item("leaf") + "\n這是葉子的正面，什麼都沒有。翻到背面看看？\n")
+        if tree == hiding_place:
             ws.write(
-                f"{area}/{nook}/.diary",
-                "親愛的日記：\n今天又偷吃了三條魚，沒有人發現。\n\n" + art.render(LAB_ID) + f"\n我的 flag 是 {flag}\n",
+                f"{tree}/branch/.note",
+                "給新朋友：\n找到這裡，表示你已經會看隱藏檔了！\n\n" + art.render(LAB_ID) + f"\nflag：{flag}\n"
+                "\nP.S. 巢穴該大掃除了，下一題見。 —— 小壹\n",
             )
         else:
-            ws.write(f"{area}/{nook}/.footprints", "有企鵝的腳印……但日記不在這裡。\n")
+            ws.write(f"{tree}/branch/.water", art.item("water") + "\n葉子背面只有一滴露水，便條不在這裡。\n")
