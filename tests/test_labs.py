@@ -52,7 +52,7 @@ def plaintext_flags(workspace):
 
 class CatalogTest(unittest.TestCase):
     def test_labs_numbered_in_class_order(self):
-        # 題號就是上課做的順序：基本指令×2、路徑、檔案操作×4、管線、資料處理、行程、權限、加分×2。
+        # 題號就是上課做的順序：基本指令×2、路徑、檔案操作×4、管線、資料處理、行程、權限、文字編輯、版本控制。
         self.assertEqual(
             [lab.LAB_ID for lab in LABS],
             [

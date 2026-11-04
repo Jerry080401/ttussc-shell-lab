@@ -24,6 +24,7 @@ from labctl.labs import (
     lab10_signals,
     lab11_chmod,
     lab12_diff_config,
+    lab13_git_history,
 )
 from labctl.plan import guest_hostname
 from tests.helpers import scratch_dir
@@ -375,6 +376,21 @@ class Lab12Test(WalkthroughCase):
                 key = line[2:].split(" = ")[0]
                 sh(workspace, f"sed -i 's/^{key} = .*/{line[2:]}/' web.conf")
         self.assert_solved(sh(workspace, "./check"), lab12_diff_config)
+
+
+class Lab13Test(WalkthroughCase):
+    def repo(self):
+        return self.root / lab13_git_history.LAB_ID / "notes"
+
+    def test_git_show_before_the_delete_prints_the_flag(self):
+        log = sh(self.repo(), "git log --oneline").stdout
+        self.assertIn("記下點心櫃密碼", log)
+        commit = next(line.split()[0] for line in log.splitlines() if "記下點心櫃密碼" in line)
+        self.assert_solved(sh(self.repo(), f"git show {commit}"), lab13_git_history)
+
+    def test_password_is_deleted_and_flag_stays_out_of_plain_grep(self):
+        self.assertFalse((self.repo() / "password.txt").exists())
+        self.assertEqual(sh(self.repo(), "grep -ra 'is1ab{' .").stdout, "")
 
 
 if __name__ == "__main__":
