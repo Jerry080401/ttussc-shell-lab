@@ -1,10 +1,12 @@
 """用學生會打的指令實際解題：每題都要拿到 is1ab{...}，畫面也要放得進 80 欄的終端機。"""
 
+import re
+import shutil
 import subprocess
 import unicodedata
 import unittest
 
-from labctl.labs import build_labs, lab01_check_in
+from labctl.labs import build_labs, lab01_check_in, lab02_read_the_manual
 from labctl.plan import guest_hostname
 from tests.helpers import scratch_dir
 
@@ -49,6 +51,48 @@ class Lab01Test(WalkthroughCase):
         result = sh(self.root / lab01_check_in.LAB_ID, "./check")
         self.assertEqual(result.returncode, 2)
         self.assertIn("用法", result.stdout)
+
+
+class Lab02Test(WalkthroughCase):
+    def line_from_manual(self):
+        workspace = self.root / lab02_read_the_manual.LAB_ID
+        if shutil.which("man"):
+            manual = sh(workspace, "man ./phone.1").stdout
+        else:
+            manual = (workspace / "phone.1").read_text(encoding="utf-8")
+        return re.search(r"朋友的線路：第 (\d+) 號", manual).group(1)
+
+    def test_help_points_to_the_manual(self):
+        result = sh(self.root / lab02_read_the_manual.LAB_ID, "./phone --help")
+        self.assertEqual(result.returncode, 0)
+        self.assertIn("man ./phone.1", result.stdout)
+
+    def test_line_from_the_manual_prints_the_flag_with_short_and_long_options(self):
+        line = self.line_from_manual()
+        for options in (f"-l {line} -d", f"--line {line} --decode", f"-dl{line}"):
+            result = sh(self.root / lab02_read_the_manual.LAB_ID, f"./phone {options}")
+            self.assert_solved(result, lab02_read_the_manual)
+
+    def test_other_lines_in_the_manual_each_have_their_own_message(self):
+        workspace = self.root / lab02_read_the_manual.LAB_ID
+        text = (workspace / "phone.1").read_text(encoding="utf-8")
+        table = dict(re.findall(r"(\S+的線路)：第 (\d+) 號", text))
+        self.assertEqual(len(table), 5)
+        self.assertNotIn("風聲", text)  # 接了才知道
+        del table["朋友的線路"]
+        messages = {sh(workspace, f"./phone -l {number} -d").stdout for number in table.values()}
+        self.assertEqual(len(messages), 4)
+        for message in messages:
+            self.assertNotIn("is1ab{", message)
+            self.assertLessEqual(columns(message.strip()), TERMINAL_COLUMNS, message)
+        self.assertIn("沒有人接", sh(workspace, "./phone -l 1 -d").stdout)
+
+    def test_each_wrong_step_says_what_to_do_next(self):
+        workspace = self.root / lab02_read_the_manual.LAB_ID
+        line = self.line_from_manual()
+        self.assertIn("--help", sh(workspace, "./phone").stdout)
+        self.assertIn("-d", sh(workspace, f"./phone -l {line}").stdout)
+        self.assertIn("man ./phone.1", sh(workspace, "./phone -l 1 -d").stdout)
 
 
 if __name__ == "__main__":

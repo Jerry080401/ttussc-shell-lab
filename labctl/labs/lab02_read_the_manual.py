@@ -6,30 +6,29 @@ from labctl.labs import art
 from labctl.labs.answer_check import seal
 
 LAB_ID = "02-read-the-manual"
-TITLE = "看說明書"
+TITLE = "蛛絲電話"
 FLAG = "is1ab{always_read_the_manual}"
 
 README = """\
-# 02 看說明書
+# 02 蛛絲電話
 
-這個資料夾裡有一台企鵝電台收音機 `radio`。企鵝電台每天在固定的頻道播放 flag，可是沒人告訴你是哪個頻道，也沒人告訴你收音機怎麼用。
+朋友透過蛛絲電話 `phone` 傳來一則訊息。可是線路很多條，你不知道該接哪一條，也不知道電話怎麼用，小壹說：先看說明書。
 
 ## 你要做的事
 
-1. 先 `cd ~/lab/02-read-the-manual`。
-2. 用 `./radio --help` 看它有哪些選項。
-3. 說明裡會告訴你去哪裡找頻道表，照著去找。
-4. 調到正確的頻道並解碼，就會聽到 flag。
+弄懂 `phone` 怎麼用，接上朋友的線路，聽清楚訊息。訊息裡有 flag。
 
 ## 提示
 
-- 選項有短的（`-c`）也有長的（`--channel`），意思一樣。
-- 有些選項後面要接一個值，例如 `-c 頻道數字`。
+- 很多程式都有 `--help`，會告訴你怎麼用。
 - `man` 可以打開說明書，在 man 裡按 `/` 搜尋、按 `q` 離開。
+- 選項有短的（`-l`）也有長的（`--line`），意思一樣。
+- 有些選項後面要接一個值，例如 `-l 線路號碼`。
+- 線路表上的每一條都可以接接看。
 """
 
-RADIO = r'''#!/usr/bin/env python3
-"""企鵝電台收音機。"""
+PHONE = r'''#!/usr/bin/env python3
+"""蛛絲電話。"""
 import getopt
 import hashlib
 import sys
@@ -38,38 +37,39 @@ SALT = "@SALT@"
 ANSWER_SHA256 = "@ANSWER@"
 SEALED_FLAG = "@SEALED@"
 PICTURE = @PICTURE@
+OTHER_LINES = @OTHERS@
 
-HELP = """用法：./radio [選項]
+HELP = """用法：./phone [選項]
 
-企鵝電台收音機。
+蛛絲電話。
 
 選項：
-  -c, --channel 頻道   調到指定的頻道（數字）
-  -d, --decode         把收到的訊號解碼
+  -l, --line 線路      接上指定的線路（數字）
+  -d, --decode         把收到的訊息解碼
   -h, --help           顯示這份說明
 
-頻道表不在這裡，請看說明書：man ./radio.1
+線路表不在這裡，請看說明書：man ./phone.1
 """
 
 
 def main(args):
     if not args:
-        print("收音機沒有開。不知道怎麼用？試試 ./radio --help")
+        print("電話還沒接線。不知道怎麼用？試試 ./phone --help")
         return 1
-    # 和 GNU 的指令一樣：-dc 88、-c88、--channel=88 都可以
+    # 和 GNU 的指令一樣：-dl 88、-l88、--line=88 都可以
     try:
-        options, rest = getopt.gnu_getopt(args, "c:dh", ["channel=", "decode", "help"])
+        options, rest = getopt.gnu_getopt(args, "l:dh", ["line=", "decode", "help"])
     except getopt.GetoptError as exc:
-        if exc.opt in ("c", "channel"):
-            print("-c／--channel 後面要接頻道數字")
+        if exc.opt in ("l", "line"):
+            print("-l／--line 後面要接線路號碼")
         else:
             print("看不懂的選項：" + ("-" if len(exc.opt) == 1 else "--") + exc.opt
-                  + "（用 ./radio --help 看有哪些選項）")
+                  + "（用 ./phone --help 看有哪些選項）")
         return 2
     if rest:
-        print("多出來的參數：" + " ".join(rest) + "（頻道要寫在 -c 後面，例如 -c 88）")
+        print("多出來的參數：" + " ".join(rest) + "（線路要寫在 -l 後面，例如 -l 88）")
         return 2
-    channel, decode = None, False
+    line, decode = None, False
     for option, value in options:
         if option in ("-h", "--help"):
             print(HELP, end="")
@@ -77,63 +77,77 @@ def main(args):
         if option in ("-d", "--decode"):
             decode = True
         else:
-            channel = value
-    if channel is None:
-        print("還沒選頻道：用 -c 或 --channel 指定")
+            line = value
+    if line is None:
+        print("還沒選線路：用 -l 或 --line 指定")
         return 1
-    channel = channel.strip()
-    if hashlib.sha256((SALT + channel).encode("utf-8")).hexdigest() != ANSWER_SHA256:
-        print("第 " + channel + " 頻道只有沙沙的雜訊。頻道表在 man ./radio.1")
+    line = line.strip()
+    known = line in OTHER_LINES
+    if not known and hashlib.sha256((SALT + line).encode("utf-8")).hexdigest() != ANSWER_SHA256:
+        print("第 " + line + " 號線沒有人接。線路表在 man ./phone.1")
         return 1
     if not decode:
-        print("收到一串加密的訊號……加上 -d（--decode）把它解碼")
+        print("接通了，但訊息聽不清楚……加上 -d（--decode）把它解碼")
         return 1
-    key = hashlib.sha256((SALT + ":key:" + channel).encode("utf-8")).digest()
+    if known:
+        print(OTHER_LINES[line])
+        return 0
+    key = hashlib.sha256((SALT + ":key:" + line).encode("utf-8")).digest()
     sealed = bytes.fromhex(SEALED_FLAG)
     print(PICTURE, end="")
-    print("收到企鵝電台的廣播！flag：" + bytes(b ^ key[i % len(key)] for i, b in enumerate(sealed)).decode("utf-8"))
+    print("聽清楚朋友的訊息了！flag：" + bytes(b ^ key[i % len(key)] for i, b in enumerate(sealed)).decode("utf-8"))
     return 0
 
 
 raise SystemExit(main(sys.argv[1:]))
 '''
 
-MANUAL = r""".TH RADIO 1 "2026" "TTUSSC" "企鵝電台使用手冊"
+MANUAL = r""".TH PHONE 1 "2026" "is1ab" "蛛絲電話使用手冊"
+.ad l
 .SH 名稱
-radio \- 企鵝電台收音機
+phone \- 蛛絲電話
 .SH 用法
-.B ./radio
-.RB [ \-c
-.IR 頻道 ]
+.B ./phone
+.RB [ \-l
+.IR 線路 ]
 .RB [ \-d ]
 .SH 說明
-企鵝電台每天在固定的頻道播放加密的 flag。
+朋友的訊息會從固定的線路傳來。
 先用
-.B \-c
-調到正確的頻道，再加上
+.B \-l
+接上正確的線路，再加上
 .B \-d
-把訊號解碼。
-.SH 頻道表
-企鵝電台：第 @PENGUIN@ 頻道
-.br
-海豹新聞台：第 @SEAL@ 頻道（只有雜訊）
+把訊息解碼。
+.SH 線路表
+@TABLE@
 .SH 範例
-.B ./radio \-\-channel 88 \-\-decode
+.B ./phone \-\-line 88 \-\-decode
 .SH 另見
 .BR man (1)
 """
 
+# 線路表上的其他線路：接上才知道是什麼
+OTHER_LINES = {
+    "樹梢的線路": "呼——呼——只有風聲。樹梢上什麼都沒有，但風景不錯。",
+    "屋簷的線路": "滴答、滴答。外面下雨了，記得收衣服。",
+    "蟋蟀家的線路": "唧唧唧！蟋蟀正在練歌，牠說下個月開演唱會，叫你記得來。",
+    "螞蟻隊的線路": "「一二、一二！」螞蟻隊正在搬餅乾，現在沒空講電話。",
+}
+
 
 def seed(ws, flag, rng, student_id):
     ws.write("README.md", README)
-    channel = str(rng.randint(100, 999))
-    decoy = str(rng.choice([c for c in range(100, 1000) if str(c) != channel]))
+    numbers = [str(number) for number in rng.sample(range(100, 1000), len(OTHER_LINES) + 1)]
+    line, others = numbers[0], dict(zip(numbers[1:], OTHER_LINES.values(), strict=True))
+    table = [(name, number) for name, number in zip(OTHER_LINES, numbers[1:], strict=True)] + [("朋友的線路", line)]
+    rng.shuffle(table)
     salt = format(rng.getrandbits(64), "016x")
-    radio = (
-        RADIO.replace("@SALT@", salt)
-        .replace("@ANSWER@", hashlib.sha256((salt + channel).encode("utf-8")).hexdigest())
-        .replace("@SEALED@", seal(flag, channel, salt))
+    phone = (
+        PHONE.replace("@SALT@", salt)
+        .replace("@ANSWER@", hashlib.sha256((salt + line).encode("utf-8")).hexdigest())
+        .replace("@SEALED@", seal(flag, line, salt))
         .replace("@PICTURE@", repr(art.render(LAB_ID)))
+        .replace("@OTHERS@", repr(others))
     )
-    ws.write("radio", radio, mode=0o755)
-    ws.write("radio.1", MANUAL.replace("@PENGUIN@", channel).replace("@SEAL@", decoy))
+    ws.write("phone", phone, mode=0o755)
+    ws.write("phone.1", MANUAL.replace("@TABLE@", "\n.br\n".join(f"{name}：第 {number} 號" for name, number in table)))

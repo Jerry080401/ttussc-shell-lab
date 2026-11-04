@@ -5,7 +5,7 @@
 | 題號 | 章節 | 題目 | 練習的指令 | 怎麼算解開 |
 |---|---|---|---|---|
 | 01 | 環境準備 | 新朋友報到 | `whoami`、`hostname`、參數 | 把帳號和主機名稱交給 `check` |
-| 02 | 環境準備 | 看說明書 | `--help`、`man`、長短選項 | 從 man page 找到頻道，用 `radio` 調頻並解碼 |
+| 02 | 環境準備 | 蛛絲電話 | `--help`、`man`、長短選項 | 從 man page 找到線路，用 `phone` 接線並解碼 |
 | 03 | 路徑與目錄 | 迷宮裡的門 | `pwd`、`cd`、絕對和相對路徑 | 站在 `/tmp`，用絕對路徑呼叫迷宮深處的門 |
 | 04 | 檔案操作 | 企鵝把檔案藏起來了 | `ls -a`、`cat` | 找到隱藏檔 |
 | 05 | 檔案操作 | 整理倉庫 | `mkdir`、`mv`、`rm`、`cp`、萬用字元 | 整理好之後用 `check` 檢查 |
@@ -35,7 +35,7 @@ flag 放在學生自己的 VM 裡，有心的學生可以去讀 `check` 的原�
 | 題號 | 題目 | flag |
 |---|---|---|
 | 01 | 新朋友報到 | `is1ab{whoami_is_a_deep_question}` |
-| 02 | 看說明書 | `is1ab{always_read_the_manual}` |
+| 02 | 蛛絲電話 | `is1ab{always_read_the_manual}` |
 | 03 | 迷宮裡的門 | `is1ab{absolute_paths_never_get_lost}` |
 | 04 | 企鵝把檔案藏起來了 | `is1ab{dotfiles_are_just_shy}` |
 | 05 | 整理倉庫 | `is1ab{rm_has_no_recycle_bin}` |
