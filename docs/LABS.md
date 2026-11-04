@@ -14,7 +14,7 @@
 | 08 | 管線與重導向 | 那通接通的電話 | `grep`、`less`、pipe | 在 log 裡找出小壹唯一接通的電話，把 flag 交給 `check` |
 | 09 | 資料處理 | 本週最佳織網員 | `cut`、`sort`、`uniq -c`、pipe | 算出答案交給 `check` |
 | 10 | 行程管理 | 叫醒小蜘蛛 | `&`、`ps`、`kill -USR1` | 對背景的程式送 USR1 |
-| 11 | 使用者與權限 | 我有檔案，但我打不開 | `ls -l`、`chmod` | 替自己的檔案加上讀取權限 |
+| 11 | 使用者與權限 | 打不開的食譜 | `ls -l`、`chmod` | 替自己的檔案加上讀取權限 |
 | 12 | 加分 | 設定檔差在哪 | `diff`、文字編輯器 | 改好設定檔，用 `check` 檢查 |
 | 13 | 加分 | 被刪掉的日記 | `git log`、`git show` | 在這題的 git repo 裡找到舊版本 |
 
@@ -46,7 +46,7 @@ flag 放在學生自己的 VM 裡，有心的學生可以去讀 `check` 的原�
 | 08 | 那通接通的電話 | `is1ab{grep_finds_the_right_line}` |
 | 09 | 本週最佳織網員 | `is1ab{sort_before_you_uniq}` |
 | 10 | 叫醒小蜘蛛 | `is1ab{kill_just_sends_a_signal}` |
-| 11 | 我有檔案，但我打不開 | `is1ab{chmod_gave_me_the_key}` |
+| 11 | 打不開的食譜 | `is1ab{chmod_gave_me_the_key}` |
 | 12 | 設定檔差在哪 | `is1ab{spot_the_difference_with_diff}` |
 | 13 | 被刪掉的日記 | `is1ab{git_never_forgets}` |
 

@@ -1,6 +1,7 @@
 """用學生會打的指令實際解題：每題都要拿到 is1ab{...}，畫面也要放得進 80 欄的終端機。"""
 
 import functools
+import os
 import re
 import shlex
 import shutil
@@ -21,6 +22,7 @@ from labctl.labs import (
     lab08_grep_log,
     lab09_sort_uniq,
     lab10_signals,
+    lab11_chmod,
 )
 from labctl.plan import guest_hostname
 from tests.helpers import scratch_dir
@@ -329,6 +331,24 @@ class Lab10Test(WalkthroughCase):
             self.assertIn("USR1", result.stdout, signal_name)
             for line in result.stdout.splitlines():
                 self.assertLessEqual(columns(line), TERMINAL_COLUMNS, line)
+
+
+class Lab11Test(WalkthroughCase):
+    def fresh_workspace(self):
+        workspace = scratch_dir()
+        source = self.root / lab11_chmod.LAB_ID / "locked.txt"
+        source.chmod(0o400)
+        shutil.copy(source, workspace / "locked.txt")
+        source.chmod(0o000)
+        (workspace / "locked.txt").chmod(0o000)
+        return workspace
+
+    def test_ls_shows_no_permission_and_chmod_opens_it(self):
+        workspace = self.fresh_workspace()
+        self.assertTrue(sh(workspace, "ls -l locked.txt").stdout.startswith("----------"))
+        if os.geteuid() != 0:  # root 不受檔案權限限制
+            self.assertNotEqual(sh(workspace, "cat locked.txt").returncode, 0)
+        self.assert_solved(sh(workspace, "chmod u+r locked.txt && cat locked.txt"), lab11_chmod)
 
 
 if __name__ == "__main__":
