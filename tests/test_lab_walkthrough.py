@@ -20,6 +20,7 @@ from labctl.labs import (
     lab07_archive,
     lab08_grep_log,
     lab09_sort_uniq,
+    lab10_signals,
 )
 from labctl.plan import guest_hostname
 from tests.helpers import scratch_dir
@@ -307,6 +308,27 @@ class Lab09Test(WalkthroughCase):
         self.assertNotIn("is1ab{", result.stdout)
         for line in result.stdout.splitlines():
             self.assertLessEqual(columns(line), TERMINAL_COLUMNS, line)
+
+
+class Lab10Test(WalkthroughCase):
+    def run_in_background(self, signal_name):
+        return sh(
+            self.root / lab10_signals.LAB_ID,
+            f"./sleepy & pid=$!; sleep 1; ps -o comm= -p $pid; kill -{signal_name} $pid; wait $pid",
+        )
+
+    def test_usr1_from_the_background_prints_the_flag(self):
+        result = self.run_in_background("USR1")
+        self.assert_solved(result, lab10_signals)
+        self.assertIn("sleepy", result.stdout)  # ps 看得到 sleepy，不是 python3
+
+    def test_other_signals_explain_what_to_send_instead(self):
+        for signal_name in ("TERM", "INT"):
+            result = self.run_in_background(signal_name)
+            self.assertNotIn("is1ab{", result.stdout, signal_name)
+            self.assertIn("USR1", result.stdout, signal_name)
+            for line in result.stdout.splitlines():
+                self.assertLessEqual(columns(line), TERMINAL_COLUMNS, line)
 
 
 if __name__ == "__main__":
