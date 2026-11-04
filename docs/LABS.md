@@ -59,7 +59,7 @@ python3 -m labctl labs build student01 --out /tmp/lab-student01   # 目標資料
 python3 -m labctl labs flags
 ```
 
-第 6、8 題的假 flag 是 16 位十六進位的亂碼，真的是一句話，所以 `grep is1ab` 一眼就看得出哪個是真的。這是刻意保留的，上課時請學生照題目要求用 `find` 和 `grep` 的條件找。
+第 6、8 題的假 flag 也是一句話，和真的長得一樣，所以 `grep is1ab` 分不出真假，要照題目用 `find` 和 `grep` 的條件找。
 
 ## 改題目
 

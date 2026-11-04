@@ -10,9 +10,8 @@ from tests.helpers import scratch_dir
 SECRET = b"s" * 32
 COHORT = "linux-2026"
 FLAG_RE = re.compile(r"is1ab\{[^}\s]*\}")
-# 真的 flag 是每題固定的一句話（全班相同），假的 flag 是 16 位十六進位的亂碼。
+# 真的 flag 是每題固定的一句話（全班相同），假的 flag 也是一句話。
 SENTENCE_RE = re.compile(r"^is1ab\{[a-z0-9]+(?:_[a-z0-9]+)+\}$")
-FAKE_RE = re.compile(r"^is1ab\{[0-9a-f]{16}\}$")
 
 
 def new_root():

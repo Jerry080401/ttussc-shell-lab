@@ -252,6 +252,21 @@ class Lab06Test(WalkthroughCase):
         self.assertGreater(len(sh(workspace, f"find storage -size {size}c").stdout.split()), 1)
 
 
+class DecoyTest(WalkthroughCase):
+    SENTENCE = "is1ab{[a-z0-9]*_[a-z0-9_]*}"
+
+    def test_decoys_in_lab_06_look_like_real_flags(self):
+        workspace = self.root / lab06_find_real_file.LAB_ID
+        flags = set(sh(workspace, f"grep -rhoE '{self.SENTENCE}' storage").stdout.split())
+        self.assertGreater(len(flags), 5)
+        self.assertIn(lab06_find_real_file.FLAG, flags)
+
+    def test_decoys_in_lab_08_look_like_real_flags(self):
+        workspace = self.root / lab08_grep_log.LAB_ID
+        self.assertGreater(int(sh(workspace, f"grep -cE '{self.SENTENCE}' service.log").stdout), 1000)
+        self.assertEqual(sh(workspace, "grep -cE 'is1ab[{][0-9a-f]{16}[}]' service.log").stdout.strip(), "0")
+
+
 class Lab07Test(WalkthroughCase):
     def test_unwrapping_layer_by_layer_prints_the_flag(self):
         workspace = scratch_dir()

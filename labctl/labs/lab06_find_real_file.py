@@ -1,6 +1,7 @@
 """Lab 06: pick the one real file with find -name and -size."""
 
 from labctl.labs import art
+from labctl.labs.flags import decoy_flag
 
 LAB_ID = "06-find-real-file"
 TITLE = "找出那束好絲"
@@ -49,10 +50,6 @@ def _item(label, flag, size):
     return (b"~" * PADDING_WIDTH + b"\n") * full + (b"~" * (rest - 1) + b"\n" if rest else b"") + tail
 
 
-def _fake_flag(rng):
-    return "is1ab{" + "".join(rng.choice("0123456789abcdef") for _ in range(16)) + "}"
-
-
 def seed(ws, flag, rng, student_id):
     real_size = BASE + rng.randint(1000, 1999)
     ws.write("README.md", README.format(size=real_size))
@@ -68,14 +65,14 @@ def seed(ws, flag, rng, student_id):
             ext, size, content_flag = (
                 "silk",
                 rng.choice([real_size - rng.randint(1, 300), real_size + rng.randint(1, 300)]),
-                _fake_flag(rng),
+                decoy_flag(rng),
             )
         elif kind == "right-size-wrong-ext":
-            ext, size, content_flag = rng.choice(EXTENSIONS[1:]), real_size, _fake_flag(rng)
+            ext, size, content_flag = rng.choice(EXTENSIONS[1:]), real_size, decoy_flag(rng)
         else:
             ext = rng.choice(EXTENSIONS)
             size = BASE + rng.randint(800, 2300)
             while size == real_size:
                 size = BASE + rng.randint(800, 2300)
-            content_flag = _fake_flag(rng)
+            content_flag = decoy_flag(rng)
         ws.write(f"storage/{shelf}/item-{number}.{ext}", _item(number, content_flag, size))

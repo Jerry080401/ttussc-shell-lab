@@ -4,6 +4,7 @@ from datetime import datetime, timedelta, timezone
 
 from labctl.labs import art
 from labctl.labs.answer_check import render_check
+from labctl.labs.flags import decoy_flag
 
 LAB_ID = "08-grep-log"
 TITLE = "那通接通的電話"
@@ -45,10 +46,6 @@ READ_ANSWER = """\
 LINES = 200_000  # 用 less 或捲動翻不完（約 25 MB），只能用 grep 找
 
 
-def _fake_flag(rng):
-    return "is1ab{" + format(rng.getrandbits(64), "016x") + "}"
-
-
 def seed(ws, flag, rng, student_id):
     ws.write("README.md", README)
     success_at = rng.randint(LINES // 5, LINES * 4 // 5)  # 不在開頭或結尾附近
@@ -59,7 +56,7 @@ def seed(ws, flag, rng, student_id):
         else:
             user = "xiaoyi" if rng.random() < 0.08 else rng.choice(USERS)
             result = "failure" if user == "xiaoyi" else rng.choice(("success", "success", "failure"))
-            note = f" note={_fake_flag(rng)}" if rng.random() < 0.1 else ""
+            note = f" note={decoy_flag(rng)}" if rng.random() < 0.1 else ""
         stamp = (START + timedelta(seconds=index * 7 + rng.randint(0, 6))).isoformat()
         level = "INFO" if result == "success" else "WARN"
         host = rng.getrandbits(24)
