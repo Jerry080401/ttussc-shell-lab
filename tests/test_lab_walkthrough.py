@@ -16,6 +16,7 @@ from labctl.labs import (
     lab04_hidden_file,
     lab05_organize,
     lab06_find_real_file,
+    lab07_archive,
 )
 from labctl.plan import guest_hostname
 from tests.helpers import scratch_dir
@@ -234,6 +235,21 @@ class Lab06Test(WalkthroughCase):
         size = re.search(r"檔案大小 (\d+) 位元組", (workspace / "README.md").read_text(encoding="utf-8")).group(1)
         self.assertGreater(len(sh(workspace, "find storage -name '*.silk'").stdout.split()), 1)
         self.assertGreater(len(sh(workspace, f"find storage -size {size}c").stdout.split()), 1)
+
+
+class Lab07Test(WalkthroughCase):
+    def test_unwrapping_layer_by_layer_prints_the_flag(self):
+        workspace = scratch_dir()
+        shutil.copy(self.root / lab07_archive.LAB_ID / "package.bin", workspace)
+        self.assertIn("gzip", sh(workspace, "file package.bin").stdout)
+        self.assertEqual(sh(workspace, "tar xzf package.bin").returncode, 0)
+        self.assertIn("inner.gz", sh(workspace / "package", "cat card.txt").stdout)
+        self.assertIn("gzip", sh(workspace / "package", "file inner.gz").stdout)
+        self.assert_solved(sh(workspace / "package", "gunzip inner.gz && cat inner"), lab07_archive)
+
+    def test_flag_is_not_readable_without_unwrapping(self):
+        workspace = self.root / lab07_archive.LAB_ID
+        self.assertNotIn(b"is1ab{", (workspace / "package.bin").read_bytes())
 
 
 if __name__ == "__main__":
