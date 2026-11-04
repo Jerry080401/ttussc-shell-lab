@@ -1,5 +1,6 @@
 """用學生會打的指令實際解題：每題都要拿到 is1ab{...}，畫面也要放得進 80 欄的終端機。"""
 
+import functools
 import re
 import shlex
 import shutil
@@ -34,11 +35,18 @@ def sh(cwd, script):
     return subprocess.run(["bash", "-c", script], cwd=cwd, capture_output=True, text=True)
 
 
+@functools.cache
+def shared_root():
+    root = scratch_dir() / "lab"
+    build_labs(root, b"s" * 32, "linux-2026", STUDENT)
+    return root
+
+
 class WalkthroughCase(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.root = scratch_dir() / "lab"
-        build_labs(cls.root, b"s" * 32, "linux-2026", STUDENT)
+        # 唯讀的題目全部共用一份：第 8 題的 log 有二十萬行，每次重建太慢。
+        cls.root = shared_root()
 
     def assert_solved(self, result, lab):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
