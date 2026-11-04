@@ -5,13 +5,15 @@ from labctl.labs.answer_check import render_check
 from labctl.plan import guest_hostname
 
 LAB_ID = "01-check-in"
-TITLE = "報到"
+TITLE = "新朋友報到"
 FLAG = "is1ab{whoami_is_a_deep_question}"
 
 README = """\
-# 01 報到
+# 01 新朋友報到
 
-歡迎！你已經成功登入自己的 Linux。畫面最左邊的這一串叫「提示字元」：
+歡迎來到蛛網！這是你第一天「上網」。負責接待的前輩小壹想先知道你的名字和住處，才能幫你做名牌。
+
+你已經成功登入自己的 Linux。畫面最左邊的這一串叫「提示字元」：
 
     student@lab-studentXX:~$
 
@@ -24,13 +26,21 @@ README = """\
 
 ## 你要做的事
 
-1. 輸入 `whoami`，看看你的帳號叫什麼。
-2. 輸入 `hostname`，看看這台主機叫什麼。
-3. 把這兩個答案當成「參數」，交給報到程式：
+1. 輸入 `whoami`，看看你的帳號叫什麼，這就是你的名字。
+2. 輸入 `hostname`，看看這台主機叫什麼，這就是你的住處。
+3. 把這兩個答案當成「參數」，交給小壹的報到程式：
 
-       ~/lab/01-check-in/check 帳號 主機名稱
+       ./check 帳號 主機名稱
 
    答對就會顯示 flag。
+
+## 每一題都會用到的指令
+
+- `ls`：看看這裡有什麼。
+- `cd 資料夾`：走進資料夾。`cd ..` 回到上一層。
+- `pwd`：顯示你現在在哪裡。
+- `cat 檔案`：讀檔案內容，你剛剛就是這樣讀到這份說明的。
+- `./check`：執行這裡的程式。`./` 的意思是「就在這裡」。
 
 ## 提示
 
@@ -42,7 +52,7 @@ README = """\
 NORMALIZE = "    return text.strip().lower()\n"
 READ_ANSWER = """\
     if len(sys.argv) != 3:
-        print("用法：~/lab/01-check-in/check 帳號 主機名稱（兩個參數，中間用空白隔開）")
+        print("用法：./check 帳號 主機名稱（兩個參數，中間用空白隔開）")
         return 2
     answer = sys.argv[1] + " " + sys.argv[2]
 """
@@ -58,10 +68,10 @@ def seed(ws, flag, rng, student_id):
             flag,
             answer,
             salt,
-            "報到：check 帳號 主機名稱",
+            "報到：./check 帳號 主機名稱",
             NORMALIZE,
             READ_ANSWER,
-            "不對喔，用 whoami 和 hostname 再確認一次。",
+            "小壹查了查名冊，對不上喔。用 whoami 和 hostname 再確認一次。",
             art.render(LAB_ID),
         ),
         mode=0o755,
