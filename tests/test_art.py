@@ -32,6 +32,13 @@ class ArtTest(unittest.TestCase):
             for row, penguin_row in enumerate(penguin):
                 self.assertEqual(lines[row][: len(penguin_row)], penguin_row, (lab_id, row))
 
+    def test_prop_sits_on_the_same_baseline_as_the_logo(self):
+        # 道具的最後一格要和左邊的圖同一列，最後一行的下半格才會有東西。
+        left = max(len(row) for row in art._rows(art.PENGUIN)) + art.GAP
+        for lab_id in ART_LABS:
+            last = art.render(lab_id).rstrip("\n").split("\n")[-1]
+            self.assertTrue(set(last[left:]) & set("▄█"), lab_id)
+
 
 if __name__ == "__main__":
     unittest.main()
