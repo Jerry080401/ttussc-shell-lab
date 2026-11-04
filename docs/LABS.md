@@ -24,7 +24,7 @@
 
 解開會拿到 flag，格式是 `is1ab{...}`，內容是一句跟這題有關的英文。第 1、2、3、5、9、10、12 題的 flag 是用正確答案推出來的金鑰加密的，要照題目用對方法跑附的程式才會印出來，直接 `grep` 找不到。
 
-除了第 8 題，答對時會一起印出一張點陣圖，左邊是照社團 logo 描的牛仔帽企鵝，右邊是跟這題有關的道具（`labctl/labs/art.py`）。第 8 題的 flag 寫在 log 的其中一行，放不下圖。第 6 題每個箱子都印著同一張圖，不然 grep 圖案就找得到真的箱子。
+除了第 8 題，答對時會一起印出一張點陣圖，左邊是參考社團 logo 畫的蜘蛛，右邊是跟這題有關的道具（`labctl/labs/art.py`）。第 8 題的 flag 寫在 log 的其中一行，放不下圖。第 6 題每個箱子都印著同一張圖，不然 grep 圖案就找得到真的箱子。
 
 flag 放在學生自己的 VM 裡，有心的學生可以去讀 `check` 的原始碼。這套題目是給上課練習用的，不適合拿來比賽。
 
@@ -50,7 +50,7 @@ flag 放在學生自己的 VM 裡，有心的學生可以去讀 `check` 的原�
 
 ## 題目資料
 
-每個學生拿到的資料不一樣，例如頻道、檔案大小、名字，但 flag 一樣。資料的亂數種子由 `.env` 的 `LAB_SECRET` 算出來：`HMAC-SHA256(secret, "seed", cohort, student, lab, round)`。同一個學生每次產生的內容完全相同，加 `--round 2` 會換一輪新的資料。
+每個學生拿到的資料不一樣，例如線路、檔案大小、名字，但 flag 一樣。資料的亂數種子由 `.env` 的 `LAB_SECRET` 算出來：`HMAC-SHA256(secret, "seed", cohort, student, lab, round)`。同一個學生每次產生的內容完全相同，加 `--round 2` 會換一輪新的資料。
 
 ```bash
 python3 -m labctl labs build student01 --out /tmp/lab-student01   # 目標資料夾要是空的
@@ -67,7 +67,7 @@ python3 -m labctl labs flags
 | `labctl/labs/__init__.py` | 題目順序和總覽說明 |
 | `labctl/labs/workspace.py` | 只能寫進那一題的資料夾，檔案權限寫死，不受 umask 影響 |
 | `labctl/labs/flags.py` | 用 `LAB_SECRET` 推出資料的亂數種子 |
-| `labctl/labs/art.py` | 答對時印出的點陣圖 |
+| `labctl/labs/art.py` | 答對時印出的點陣圖，和題目裡的物品圖 |
 | `labctl/labs/answer_check.py` | 加密 flag 的 `seal()`，還有第 1、9、12 題共用的 `check` |
 
 改故事或提示，就改模組裡的 `README` 字串，改完跑 `make test`。`seed()` 只能透過 `ws` 寫進自己的資料夾，也不連網路。第 13 題產生時會呼叫 `git`，所以實驗主機要有 git，`make host` 會裝。
