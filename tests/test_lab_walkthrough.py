@@ -18,6 +18,7 @@ from labctl.labs import (
     lab05_organize,
     lab06_find_real_file,
     lab07_archive,
+    lab08_grep_log,
 )
 from labctl.plan import guest_hostname
 from tests.helpers import scratch_dir
@@ -258,6 +259,33 @@ class Lab07Test(WalkthroughCase):
     def test_flag_is_not_readable_without_unwrapping(self):
         workspace = self.root / lab07_archive.LAB_ID
         self.assertNotIn(b"is1ab{", (workspace / "package.bin").read_bytes())
+
+
+class Lab08Test(WalkthroughCase):
+    def test_check_confirms_the_real_flag_with_a_picture(self):
+        workspace = self.root / lab08_grep_log.LAB_ID
+        result = sh(workspace, f"./check {lab08_grep_log.FLAG}")
+        self.assert_solved(result, lab08_grep_log)
+        self.assertRegex(result.stdout, "[▀▄█]")
+
+    def test_check_refuses_a_decoy_and_the_log_has_no_picture(self):
+        workspace = self.root / lab08_grep_log.LAB_ID
+        decoy = sh(workspace, f"grep -m1 -o 'note=is1ab.*' service.log | grep -v {lab08_grep_log.FLAG}").stdout
+        result = sh(workspace, f"./check {decoy.strip().removeprefix('note=')}")
+        self.assertEqual(result.returncode, 1)
+        self.assertNotIn("答對", result.stdout)
+        self.assertEqual(sh(workspace, "grep -c '█' service.log").stdout.strip(), "0")
+
+    def test_two_greps_with_a_pipe_find_exactly_one_line(self):
+        workspace = self.root / lab08_grep_log.LAB_ID
+        lines = sh(workspace, "grep user=xiaoyi service.log | grep result=success").stdout.splitlines()
+        self.assertEqual(len(lines), 1)
+        self.assertIn(lab08_grep_log.FLAG, lines[0])
+
+    def test_one_grep_alone_is_not_enough(self):
+        workspace = self.root / lab08_grep_log.LAB_ID
+        self.assertGreater(int(sh(workspace, "grep -c user=xiaoyi service.log").stdout), 1)
+        self.assertGreater(int(sh(workspace, "grep -c result=success service.log").stdout), 1)
 
 
 if __name__ == "__main__":

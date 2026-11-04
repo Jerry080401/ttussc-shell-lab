@@ -11,7 +11,7 @@
 | 05 | 檔案操作 | 大掃除 | `mkdir`、`mv`、`rm`、`cp`、萬用字元 | 整理好之後用 `check` 檢查 |
 | 06 | 檔案操作 | 找出那束好絲 | `find`、檔名和大小條件 | 找到符合線索的檔案 |
 | 07 | 檔案操作 | 蜜蜂的包裹 | `file`、`tar`、`gzip` | 一層一層解開壓縮檔 |
-| 08 | 管線與重導向 | 企鵝只登入成功一次 | `grep`、`less`、pipe | 在 log 裡找出唯一一次成功的登入 |
+| 08 | 管線與重導向 | 那通接通的電話 | `grep`、`less`、pipe | 在 log 裡找出小壹唯一接通的電話，把 flag 交給 `check` |
 | 09 | 資料處理 | 誰偷吃最多條魚 | `cut`、`sort`、`uniq -c`、pipe | 算出答案交給 `check` |
 | 10 | 行程管理 | 叫醒企鵝 | `&`、`ps`、`kill -USR1` | 對背景的程式送 USR1 |
 | 11 | 使用者與權限 | 我有檔案，但我打不開 | `ls -l`、`chmod` | 替自己的檔案加上讀取權限 |
@@ -22,9 +22,9 @@
 
 每個學生的 `~/lab/` 有一份總覽 `README.md`，每題一個資料夾，裡面的 `README.md` 寫故事、要做的事和提示。檔名用英文，因為學生在終端機裡不一定打得出中文。
 
-解開會拿到 flag，格式是 `is1ab{...}`，內容是一句跟這題有關的英文。第 1、2、3、5、9、10、12 題的 flag 是用正確答案推出來的金鑰加密的，要照題目用對方法跑附的程式才會印出來，直接 `grep` 找不到。
+解開會拿到 flag，格式是 `is1ab{...}`，內容是一句跟這題有關的英文。第 1、2、3、5、8、9、10、12 題的 flag 是用正確答案推出來的金鑰加密的，要照題目用對方法跑附的程式才會印出來，直接 `grep` 找不到。
 
-除了第 8 題，答對時會一起印出一張點陣圖，左邊是參考社團 logo 畫的蜘蛛，右邊是跟這題有關的道具（`labctl/labs/art.py`）。第 8 題的 flag 寫在 log 的其中一行，放不下圖。第 6 題每束絲都印著同一張圖，不然 grep 圖案就找得到真的那一束。
+答對時會一起印出一張點陣圖，左邊是參考社團 logo 畫的蜘蛛，右邊是跟這題有關的道具（`labctl/labs/art.py`）。第 8 題的 flag 寫在 log 的其中一行，交給 `check` 確認時才會印出圖。題目裡的物品檔案也是點陣圖，用 `cat` 就看得到。
 
 第 5 題要學生留下絲線、露水和地圖。VM 開機時會把 `rm` 的保護裝到 `/etc/profile.d/is1ab-lab-rm.sh`，學生用 `rm` 刪這些東西會被擋下並看到原因。用 `command rm` 硬刪的話，`./check` 會放回去。
 
@@ -43,7 +43,7 @@ flag 放在學生自己的 VM 裡，有心的學生可以去讀 `check` 的原�
 | 05 | 大掃除 | `is1ab{rm_has_no_recycle_bin}` |
 | 06 | 找出那束好絲 | `is1ab{one_real_item_among_many_fakes}` |
 | 07 | 蜜蜂的包裹 | `is1ab{never_trust_a_file_extension}` |
-| 08 | 企鵝只登入成功一次 | `is1ab{grep_finds_the_needle}` |
+| 08 | 那通接通的電話 | `is1ab{grep_finds_the_right_line}` |
 | 09 | 誰偷吃最多條魚 | `is1ab{sort_before_you_uniq}` |
 | 10 | 叫醒企鵝 | `is1ab{kill_just_sends_a_signal}` |
 | 11 | 我有檔案，但我打不開 | `is1ab{chmod_gave_me_the_key}` |
@@ -70,7 +70,7 @@ python3 -m labctl labs flags
 | `labctl/labs/workspace.py` | 只能寫進那一題的資料夾，檔案權限寫死，不受 umask 影響 |
 | `labctl/labs/flags.py` | 用 `LAB_SECRET` 推出資料的亂數種子 |
 | `labctl/labs/art.py` | 答對時印出的點陣圖，和題目裡的物品圖 |
-| `labctl/labs/answer_check.py` | 加密 flag 的 `seal()`，還有第 1、9、12 題共用的 `check` |
+| `labctl/labs/answer_check.py` | 加密 flag 的 `seal()`，還有第 1、8、9、12 題共用的 `check` |
 
 改故事或提示，就改模組裡的 `README` 字串，改完跑 `make test`。`seed()` 只能透過 `ws` 寫進自己的資料夾，也不連網路。第 13 題產生時會呼叫 `git`，所以實驗主機要有 git，`make host` 會裝。
 
