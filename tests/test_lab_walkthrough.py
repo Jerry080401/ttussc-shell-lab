@@ -6,7 +6,7 @@ import subprocess
 import unicodedata
 import unittest
 
-from labctl.labs import build_labs, lab01_check_in, lab02_read_the_manual
+from labctl.labs import build_labs, lab01_check_in, lab02_read_the_manual, lab03_paths
 from labctl.plan import guest_hostname
 from tests.helpers import scratch_dir
 
@@ -93,6 +93,29 @@ class Lab02Test(WalkthroughCase):
         self.assertIn("--help", sh(workspace, "./phone").stdout)
         self.assertIn("-d", sh(workspace, f"./phone -l {line}").stdout)
         self.assertIn("man ./phone.1", sh(workspace, "./phone -l 1 -d").stdout)
+
+
+class Lab03Test(WalkthroughCase):
+    def workspace(self):
+        return self.root / lab03_paths.LAB_ID
+
+    def mailbox(self):
+        return self.workspace() / "forest/big-tree/hole/mailbox"
+
+    def test_absolute_path_from_the_post_office_prints_the_flag(self):
+        self.assert_solved(sh(self.workspace() / "post-office", f"pwd && {self.mailbox()}"), lab03_paths)
+
+    def test_relative_path_is_refused_even_from_the_post_office(self):
+        result = sh(self.workspace() / "post-office", "../forest/big-tree/hole/mailbox")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("絕對路徑", result.stdout)
+        self.assertNotIn("is1ab{", result.stdout)
+
+    def test_absolute_path_from_elsewhere_says_to_go_to_the_post_office(self):
+        result = sh(self.mailbox().parent, str(self.mailbox()))
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("post-office", result.stdout)
+        self.assertNotIn("is1ab{", result.stdout)
 
 
 if __name__ == "__main__":
