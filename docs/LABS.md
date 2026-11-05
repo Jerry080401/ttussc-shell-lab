@@ -1,6 +1,6 @@
 # 題目
 
-13 題命令列練習，程式在 `labctl/labs/`。題號就是上課的順序，章節順序參考 pwn.college 的 Linux Luminarium，每章講完就做那一章的題目（[簡報](https://canva.link/ebc3teparl7gopj)）。
+13 題命令列練習，程式在 `labctl/labs/`。題號就是上課的順序，章節順序參考 pwn.college 的 Linux Luminarium，每章講完就做那一章的題目。
 
 | 題號 | 章節 | 題目 | 練習的指令 | 怎麼算解開 |
 |---|---|---|---|---|

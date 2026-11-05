@@ -1,8 +1,6 @@
-# ttussc-shell-lab
+# shell-lab
 
-[![CI](https://github.com/Jerry080401/ttussc-shell-lab/actions/workflows/ci.yml/badge.svg)](https://github.com/Jerry080401/ttussc-shell-lab/actions/workflows/ci.yml)
-
-TTUSSC「Linux 常用指令」社課用的實驗環境。每個學生分到一台 Ubuntu VM，先用 NetBird 加入課程的私人網路，再 SSH 進自己的 VM 做題目。題目有 13 題，解開會拿到 flag。
+「Linux 常用指令」課程用的實驗環境模板，可以依不同課程或學校調整。每個學生分到一台 Ubuntu VM，先用 NetBird 加入課程的私人網路，再 SSH 進自己的 VM 做題目。題目有 13 題，解開會拿到 flag。
 
 ```text
 學生筆電 ──NetBird（WireGuard）──> 自己的 VM（實驗主機上的 Incus/KVM）
@@ -40,6 +38,17 @@ make cards      # 全班的連線指令，寫到 local/cards.md
 `local/cards.md` 有每個學生的連線指令和密碼，發的時候一人只給自己那一段。學生要先照 [學生連線說明](docs/STUDENT_GUIDE.md) 裝好 NetBird。
 
 每個指令都可以重跑，做過的部分會跳過。打 `make` 可以看到全部的指令。
+
+## 當成模板使用
+
+這個專案是模板，每次開課只要調整下面這些地方：
+
+| 要改的 | 位置 |
+|---|---|
+| 班級、人數、flag 前綴 | `.env` 的 `COHORT`、`STUDENT_COUNT`、`FLAG_PREFIX` |
+| 伺服器和主機 | `.env` 的 `NETBIRD_*`、`ADMIN_EMAIL`、`LAB_SSH` |
+| 題目故事、提示和 flag 句子 | `labctl/labs/labNN_*.py`，做法見[題目](docs/LABS.md) |
+| 答對時印出的圖 | `labctl/labs/art.py` |
 
 ## 設定
 
@@ -110,7 +119,6 @@ setup key 都只能用一次。密碼和 key 只經過 stdin 傳到主機和 VM�
 ## 文件
 
 - [學生連線說明](docs/STUDENT_GUIDE.md)：課前準備和上課時的連線步驟，可以直接發給學生
-- [簡報](https://canva.link/ebc3teparl7gopj)：社課「Linux 常用指令」的投影片（Canva）
 - [題目](docs/LABS.md)：每題在練什麼、答案、資料怎麼產生、怎麼改題目
 
 ## 開發
