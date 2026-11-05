@@ -4,9 +4,9 @@
   hosts: netbird_vps
   become: true
   vars:
-    ttussc_versions: "{{ lookup('ansible.builtin.file', playbook_dir ~ '/../../versions.lock.json') | from_json }}"
-    netbird_compose_directory: /opt/ttussc/netbird
-    netbird_installer_directory: /opt/ttussc/installer
+    shell_lab_versions: "{{ lookup('ansible.builtin.file', playbook_dir ~ '/../../versions.lock.json') | from_json }}"
+    netbird_compose_directory: /opt/shell-lab/netbird
+    netbird_installer_directory: /opt/shell-lab/installer
   roles:
     - preflight
     - docker

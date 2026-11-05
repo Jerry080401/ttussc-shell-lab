@@ -3,10 +3,10 @@
   ansible.builtin.assert:
     that:
       - ansible_facts['distribution'] == 'Ubuntu'
-      - ("ubuntu-" ~ ansible_facts['distribution_version']) in ttussc_versions.supported_vps_os
+      - ("ubuntu-" ~ ansible_facts['distribution_version']) in shell_lab_versions.supported_vps_os
       - ansible_facts['architecture'] in ['x86_64', 'aarch64']
     fail_msg: >-
-      只支援 {{ ttussc_versions.supported_vps_os | join('、') }}（x86_64/aarch64），
+      只支援 {{ shell_lab_versions.supported_vps_os | join('、') }}（x86_64/aarch64），
       目前是 {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_version'] }}
       {{ ansible_facts['architecture'] }}
     quiet: true

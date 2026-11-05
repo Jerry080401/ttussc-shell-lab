@@ -12,7 +12,7 @@ MANAGEMENT_URL = re.compile(r"https://[A-Za-z0-9.-]+(:[0-9]{1,5})?/?")
 
 # 安裝方式和學生連線說明（docs/STUDENT_GUIDE.md）相同，每個人都一樣。
 MARKDOWN = """\
-# TTUSSC Linux Lab 連線指令（全班）
+# Linux Lab 連線指令（全班）
 
 ## 安裝 NetBird（每個人一樣，課前先裝好）
 

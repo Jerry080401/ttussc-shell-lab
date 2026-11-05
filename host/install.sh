@@ -1,6 +1,6 @@
 #!/bin/bash
 # 設定實驗主機：裝 Incus，載入 VM 隔離防火牆，啟用閘道同步。可以重跑。
-# make host 會先把程式放到 /opt/ttussc/labs、設定放到 /etc/ttussc/lab.env，再執行這支。
+# make host 會先把程式放到 /opt/shell-lab/labs、設定放到 /etc/shell-lab/lab.env，再執行這支。
 set -euo pipefail
 here=$(dirname "$(readlink -f "$0")")
 # shellcheck source=common.sh
@@ -24,18 +24,18 @@ DEBIAN_FRONTEND=noninteractive apt-get install -y -q incus qemu-system-x86 qemu-
 
 echo "== VM 隔離防火牆和閘道同步"
 # 防火牆要比 Incus 先起來，VM 才不會在沒有隔離的情況下開機。
-install -d -m 0700 /etc/ttussc
-labctl render firewall >/etc/ttussc/lab-firewall.nft.new
-nft -c -f /etc/ttussc/lab-firewall.nft.new
-mv /etc/ttussc/lab-firewall.nft.new /etc/ttussc/lab-firewall.nft
-install -m 0755 "$here/gateway-sync" /usr/local/sbin/ttussc-gateway-sync
-install -m 0644 "$here"/systemd/ttussc-* /etc/systemd/system/
+install -d -m 0700 /etc/shell-lab
+labctl render firewall >/etc/shell-lab/lab-firewall.nft.new
+nft -c -f /etc/shell-lab/lab-firewall.nft.new
+mv /etc/shell-lab/lab-firewall.nft.new /etc/shell-lab/lab-firewall.nft
+install -m 0755 "$here/gateway-sync" /usr/local/sbin/shell-lab-gateway-sync
+install -m 0644 "$here"/systemd/shell-lab-* /etc/systemd/system/
 install -d /etc/systemd/system/incus.service.d
-install -m 0644 "$here/systemd/incus-needs-lab-firewall.conf" /etc/systemd/system/incus.service.d/ttussc-lab-firewall.conf
+install -m 0644 "$here/systemd/incus-needs-lab-firewall.conf" /etc/systemd/system/incus.service.d/shell-lab-firewall.conf
 systemctl daemon-reload
-systemctl enable ttussc-lab-firewall.service ttussc-gateway-sync.timer
-systemctl restart ttussc-lab-firewall.service
-systemctl start ttussc-gateway-sync.timer
+systemctl enable shell-lab-firewall.service shell-lab-gateway-sync.timer
+systemctl restart shell-lab-firewall.service
+systemctl start shell-lab-gateway-sync.timer
 
 echo "== Incus"
 systemctl enable --now incus.socket incus-startup.service

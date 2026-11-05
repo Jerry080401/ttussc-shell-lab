@@ -3,7 +3,7 @@ requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "ttussc-shell-lab"
+name = "shell-lab"
 version = "1.0.0"
 description = "一人一台 Linux VM 的命令列課程環境，學生用 NetBird 連線"
 readme = "README.md"

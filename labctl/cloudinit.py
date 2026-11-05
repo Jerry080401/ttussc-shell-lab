@@ -100,19 +100,19 @@ def render_user_data(instance):
         "packages": packages,
         "write_files": [
             {
-                "path": "/etc/ssh/sshd_config.d/00-ttussc-lab.conf",
+                "path": "/etc/ssh/sshd_config.d/00-shell-lab.conf",
                 "owner": "root:root",
                 "permissions": "0644",
                 "content": _sshd_dropin(),
             },
             {
-                "path": "/etc/profile.d/ttussc-locale.sh",
+                "path": "/etc/profile.d/shell-lab-locale.sh",
                 "owner": "root:root",
                 "permissions": "0644",
                 "content": _locale_profile(locale),
             },
             {
-                "path": "/etc/profile.d/is1ab-lab-rm.sh",
+                "path": "/etc/profile.d/shell-lab-rm.sh",
                 "owner": "root:root",
                 "permissions": "0644",
                 "content": RM_GUARD,

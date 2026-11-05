@@ -4,7 +4,7 @@
   hosts: netbird_vps
   become: true
   vars:
-    netbird_compose_directory: /opt/ttussc/netbird
+    netbird_compose_directory: /opt/shell-lab/netbird
   tasks:
     - name: Start NetBird services
       ansible.builtin.command:

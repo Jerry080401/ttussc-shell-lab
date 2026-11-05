@@ -102,14 +102,14 @@ class GatewaySyncCommandTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(
             result.stdout,
-            "flush set inet ttussc_lab uplink_gateways\nadd element inet ttussc_lab uplink_gateways { 192.168.1.1 }\n",
+            "flush set inet shell_lab uplink_gateways\nadd element inet shell_lab uplink_gateways { 192.168.1.1 }\n",
         )
 
     def test_no_default_route_empties_the_set(self):
         # 沒有預設路由時只清空，VM 連不出去（fail-closed）。
         result = self.run_sync("[]\n")
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(result.stdout, "flush set inet ttussc_lab uplink_gateways\n")
+        self.assertEqual(result.stdout, "flush set inet shell_lab uplink_gateways\n")
 
     def test_garbage_input_is_refused(self):
         for stdin in (

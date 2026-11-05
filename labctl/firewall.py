@@ -15,7 +15,7 @@ anything: the design fails closed.
 
 import ipaddress
 
-TABLE = "inet ttussc_lab"
+TABLE = "inet shell_lab"
 BRIDGE_PREFIX = "tl"  # 每台 VM 的 bridge 都叫 tl 加 10 位十六進位，見 plan.bridge_name
 
 # 私有、共享、保留與特殊用途位址，VM 一律不能直接連。
@@ -40,7 +40,7 @@ def _v4_set(networks):
 
 
 def render_ruleset(protected_networks):
-    """Return an nft script that atomically replaces the ttussc_lab table.
+    """Return an nft script that atomically replaces the shell_lab table.
 
     The rules match every interface named tl*, not the bridges of today's class list,
     so a VM left over after STUDENT_COUNT shrinks is still isolated.

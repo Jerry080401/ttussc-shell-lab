@@ -1,1 +1,1 @@
-"""TTUSSC shell lab: settings, VM plan, cloud-init, firewall, lab exercises and NetBird helpers."""
+"""Shell lab: settings, VM plan, cloud-init, firewall, lab exercises and NetBird helpers."""

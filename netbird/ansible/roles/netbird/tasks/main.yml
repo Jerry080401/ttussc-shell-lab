@@ -13,9 +13,9 @@
 
 - name: Download the pinned official installer
   ansible.builtin.get_url:
-    url: "{{ ttussc_versions.installer.url }}"
-    dest: "{{ netbird_installer_directory }}/getting-started-{{ ttussc_versions.netbird_release }}.sh"
-    checksum: "sha256:{{ ttussc_versions.installer.sha256 }}"
+    url: "{{ shell_lab_versions.installer.url }}"
+    dest: "{{ netbird_installer_directory }}/getting-started-{{ shell_lab_versions.netbird_release }}.sh"
+    checksum: "sha256:{{ shell_lab_versions.installer.sha256 }}"
     owner: root
     group: root
     mode: "0700"
@@ -25,7 +25,7 @@
 # 官方腳本在 config.yaml 已存在時會拒絕重跑，所以只在第一次安裝時執行。
 - name: Run the official installer once (non-interactive, built-in Traefik)
   ansible.builtin.command:
-    cmd: "{{ netbird_installer_directory }}/getting-started-{{ ttussc_versions.netbird_release }}.sh"
+    cmd: "{{ netbird_installer_directory }}/getting-started-{{ shell_lab_versions.netbird_release }}.sh"
     chdir: "{{ netbird_compose_directory }}"
     creates: "{{ netbird_compose_directory }}/config.yaml"
   environment:
@@ -35,9 +35,9 @@
     NETBIRD_REVERSE_PROXY_TYPE: "0"
     NETBIRD_ENABLE_PROXY: "false"
     NETBIRD_ENABLE_CROWDSEC: "false"
-    NETBIRD_SERVER_IMAGE: "{{ ttussc_versions.images.netbird_server }}"
-    DASHBOARD_IMAGE: "{{ ttussc_versions.images.dashboard }}"
-    TRAEFIK_IMAGE: "{{ ttussc_versions.images.traefik }}"
+    NETBIRD_SERVER_IMAGE: "{{ shell_lab_versions.images.netbird_server }}"
+    DASHBOARD_IMAGE: "{{ shell_lab_versions.images.dashboard }}"
+    TRAEFIK_IMAGE: "{{ shell_lab_versions.images.traefik }}"
   register: netbird_install
   when: not (ansible_check_mode and netbird_directories is changed)
 
@@ -53,9 +53,9 @@
     regexp: '^(\s+image:\s+){{ item.repo | regex_escape }}[:@]\S+$'
     replace: '\g<1>{{ item.image }}'
   loop:
-    - { repo: "netbirdio/netbird-server", image: "{{ ttussc_versions.images.netbird_server }}" }
-    - { repo: "netbirdio/dashboard", image: "{{ ttussc_versions.images.dashboard }}" }
-    - { repo: "traefik", image: "{{ ttussc_versions.images.traefik }}" }
+    - { repo: "netbirdio/netbird-server", image: "{{ shell_lab_versions.images.netbird_server }}" }
+    - { repo: "netbirdio/dashboard", image: "{{ shell_lab_versions.images.dashboard }}" }
+    - { repo: "traefik", image: "{{ shell_lab_versions.images.traefik }}" }
   loop_control:
     label: "{{ item.repo }}"
   when: netbird_compose_file.stat.exists

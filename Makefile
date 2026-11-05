@@ -10,7 +10,7 @@ PYTHON ?= python3
 LABCTL := $(PYTHON) -m labctl --env $(ENV)
 TF := terraform -chdir=netbird/terraform
 ANSIBLE := cd netbird/ansible && ../../.venv/bin/ansible-playbook
-HOST_DIR := /opt/ttussc/labs
+HOST_DIR := /opt/shell-lab/labs
 ON_HOST := ssh $(LAB_SSH) sudo $(HOST_DIR)/host
 
 # Ansible 和 Terraform 從環境變數讀設定。
@@ -72,7 +72,7 @@ renew-keys: check ## 換新的 setup key，預設換全班學生電腦的。STUD
 host: check ## 把程式和設定放到實驗主機，裝好 Incus 和隔離防火牆
 	tar -cz --exclude=__pycache__ labctl host versions.lock.json | ssh $(LAB_SSH) \
 		"sudo sh -c 'rm -rf $(HOST_DIR).new && mkdir -p $(HOST_DIR).new && tar -xz --no-same-owner -C $(HOST_DIR).new && rm -rf $(HOST_DIR) && mv $(HOST_DIR).new $(HOST_DIR)'"
-	$(LABCTL) config host-env | ssh $(LAB_SSH) "sudo sh -c 'umask 077 && mkdir -p /etc/ttussc && cat >/etc/ttussc/lab.env'"
+	$(LABCTL) config host-env | ssh $(LAB_SSH) "sudo sh -c 'umask 077 && mkdir -p /etc/shell-lab && cat >/etc/shell-lab/lab.env'"
 	$(ON_HOST)/install.sh
 
 vms: check ## 建立所有學生的 VM，先建兩台試跑

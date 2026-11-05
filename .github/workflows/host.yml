@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     env:
-      HOST: /opt/ttussc/labs/host
+      HOST: /opt/shell-lab/labs/host
       VM: linux-2026-student01
     steps:
       - uses: actions/checkout@v4
@@ -35,18 +35,18 @@ jobs:
           secret=$(python3 -c 'import secrets; print(secrets.token_hex(32))')
           sed -e 's/^STUDENT_COUNT=.*/STUDENT_COUNT=2/' -e "s/^LAB_SECRET=.*/LAB_SECRET=$secret/" \
             -e 's/^STUDENT_SUDO=.*/STUDENT_SUDO=false/' .env.example >lab.env
-          sudo install -d -m 0700 /etc/ttussc
-          sudo install -m 0600 lab.env /etc/ttussc/lab.env
-          sudo mkdir -p /opt/ttussc/labs
-          tar -cz --exclude=__pycache__ labctl host versions.lock.json | sudo tar -xz --no-same-owner -C /opt/ttussc/labs
+          sudo install -d -m 0700 /etc/shell-lab
+          sudo install -m 0600 lab.env /etc/shell-lab/lab.env
+          sudo mkdir -p /opt/shell-lab/labs
+          tar -cz --exclude=__pycache__ labctl host versions.lock.json | sudo tar -xz --no-same-owner -C /opt/shell-lab/labs
 
       - name: install.sh twice
         run: |
           sudo "$HOST/install.sh"
           sudo "$HOST/install.sh"
-          sudo nft list table inet ttussc_lab >/dev/null
-          systemctl is-active ttussc-lab-firewall.service ttussc-gateway-sync.timer incus.socket
-          systemctl cat incus.service | grep -q 'nft list table inet ttussc_lab'
+          sudo nft list table inet shell_lab >/dev/null
+          systemctl is-active shell-lab-firewall.service shell-lab-gateway-sync.timer incus.socket
+          systemctl cat incus.service | grep -q 'nft list table inet shell_lab'
           if ip -br link | grep -q '^incusbr0'; then echo "incusbr0 should not exist"; exit 1; fi
 
       - name: create-vm.sh
@@ -83,10 +83,10 @@ jobs:
       - name: teardown.sh
         run: |
           sudo "$HOST/teardown.sh"
-          if sudo nft list table inet ttussc_lab >/dev/null 2>&1; then echo "firewall table still loaded"; exit 1; fi
+          if sudo nft list table inet shell_lab >/dev/null 2>&1; then echo "firewall table still loaded"; exit 1; fi
           if systemctl is-active --quiet incus.service; then echo "Incus still running"; exit 1; fi
           if ip -br link | grep -q '^tl'; then echo "lab bridges left"; exit 1; fi
-          for unit in ttussc-lab-firewall.service ttussc-gateway-sync.timer incus.socket; do
+          for unit in shell-lab-firewall.service shell-lab-gateway-sync.timer incus.socket; do
             if systemctl is-enabled --quiet "$unit"; then echo "$unit still enabled"; exit 1; fi
           done
 
@@ -95,7 +95,7 @@ jobs:
           sudo "$HOST/install.sh"
           [ "$(sudo incus config get "$VM" boot.autostart)" = false ]
           sudo incus info "$VM" | grep -q '^Status: STOPPED'
-          sudo nft delete table inet ttussc_lab
+          sudo nft delete table inet shell_lab
           if sudo systemctl restart incus.service; then echo "Incus started without the firewall"; exit 1; fi
-          sudo systemctl restart ttussc-lab-firewall.service
+          sudo systemctl restart shell-lab-firewall.service
           sudo systemctl start incus.service

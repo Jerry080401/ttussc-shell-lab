@@ -149,7 +149,7 @@ def cmd_netbird_check(args):
 
 
 def build_parser():
-    parser = argparse.ArgumentParser(prog="labctl", description="TTUSSC shell lab tooling")
+    parser = argparse.ArgumentParser(prog="labctl", description="Shell lab tooling")
     parser.add_argument("--env", default=".env", type=Path, help="settings file (default: .env)")
     commands = parser.add_subparsers(dest="command", required=True)
 

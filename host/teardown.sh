@@ -40,8 +40,8 @@ fi
 
 echo "== 停用 Incus、防火牆和閘道同步"
 disable_units incus-startup.service incus.socket incus.service incus-user.socket incus-user.service
-disable_units ttussc-gateway-sync.timer ttussc-lab-firewall.service
-if nft list table inet ttussc_lab >/dev/null 2>&1; then
-    nft delete table inet ttussc_lab
+disable_units shell-lab-gateway-sync.timer shell-lab-firewall.service
+if nft list table inet shell_lab >/dev/null 2>&1; then
+    nft delete table inet shell_lab
 fi
 echo "完成。VM 和資料都還在，要再上課時跑 make host 和 make vms。"

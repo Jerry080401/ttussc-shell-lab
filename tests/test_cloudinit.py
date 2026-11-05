@@ -30,7 +30,7 @@ def parsed(text):
 
 def sshd_settings(doc):
     files = {f["path"]: f for f in doc["write_files"]}
-    dropin = files["/etc/ssh/sshd_config.d/00-ttussc-lab.conf"]
+    dropin = files["/etc/ssh/sshd_config.d/00-shell-lab.conf"]
     settings = {}
     for line in dropin["content"].splitlines():
         if line.strip() and not line.startswith("#"):
@@ -57,7 +57,7 @@ class CloudConfigTest(unittest.TestCase):
     def test_installs_the_rm_guard_for_lab_05(self):
         doc = parsed(render_user_data(instance()))
         files = {f["path"]: f for f in doc["write_files"]}
-        self.assertEqual(files["/etc/profile.d/is1ab-lab-rm.sh"]["content"], RM_GUARD)
+        self.assertEqual(files["/etc/profile.d/shell-lab-rm.sh"]["content"], RM_GUARD)
 
     def test_only_the_student_account_is_created(self):
         doc = parsed(render_user_data(instance()))
@@ -87,7 +87,7 @@ class CloudConfigTest(unittest.TestCase):
         self.assertEqual((doc["locale"], doc["timezone"]), ("zh_TW.UTF-8", "Asia/Taipei"))
         for package in ("language-pack-zh-hant", "manpages-zh", "man-db", "vim", "git"):
             self.assertIn(package, doc["packages"])
-        profile = {f["path"]: f for f in doc["write_files"]}["/etc/profile.d/ttussc-locale.sh"]["content"]
+        profile = {f["path"]: f for f in doc["write_files"]}["/etc/profile.d/shell-lab-locale.sh"]["content"]
         self.assertIn("export LANGUAGE=zh_TW:zh\n", profile)
 
     def test_other_locale_skips_chinese_packages(self):
@@ -95,7 +95,7 @@ class CloudConfigTest(unittest.TestCase):
         self.assertEqual((doc["locale"], doc["timezone"]), ("en_US.UTF-8", "UTC"))
         for package in CHINESE_PACKAGES:
             self.assertNotIn(package, doc["packages"])
-        profile = {f["path"]: f for f in doc["write_files"]}["/etc/profile.d/ttussc-locale.sh"]["content"]
+        profile = {f["path"]: f for f in doc["write_files"]}["/etc/profile.d/shell-lab-locale.sh"]["content"]
         self.assertIn("export LANG=en_US.UTF-8\n", profile)
         self.assertNotIn("LANGUAGE=zh", profile)
 
