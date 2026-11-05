@@ -2,7 +2,7 @@
 
 The secret is LAB_SECRET in .env, outside Git. Seeds are reproducible, so
 rebuilding a student's labs gives the same data. Bump `round_` for fresh data.
-Flags are not derived: each lab has one fixed sentence (`FLAG` in its module).
+Flags are not derived: each lab has one fixed sentence (`FLAG` in its module), wrapped in FLAG_PREFIX{...}.
 Decoys in labs 06 and 08 are sentences too, so only the lab's own conditions find the real one.
 """
 
@@ -26,6 +26,7 @@ def derive_seed(secret, cohort, student_id, lab_id, round_=1):
     return int(_mac(secret, "seed", cohort, student_id, lab_id, round_)[:16], 16)
 
 
-def decoy_flag(rng):
-    """A fake flag shaped like the real sentences."""
-    return f"is1ab{{{rng.choice(DECOY_SUBJECTS)}_{rng.choice(DECOY_VERBS)}_the_{rng.choice(DECOY_OBJECTS)}}}"
+def decoy_flag(rng, real_flag):
+    """A fake flag with the same prefix as `real_flag`, shaped like the real sentences."""
+    prefix = real_flag.partition("{")[0]
+    return f"{prefix}{{{rng.choice(DECOY_SUBJECTS)}_{rng.choice(DECOY_VERBS)}_the_{rng.choice(DECOY_OBJECTS)}}}"

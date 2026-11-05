@@ -7,7 +7,7 @@ from labctl.labs import art
 
 LAB_ID = "13-git-history"
 TITLE = "不小心寫下的密碼"
-FLAG = "is1ab{git_never_forgets}"
+FLAG = "git_never_forgets"
 
 README = """\
 # 13 不小心寫下的密碼
@@ -63,10 +63,10 @@ def _git_env(date):
         "GIT_CONFIG_SYSTEM": os.devnull,
         "GIT_CONFIG_NOSYSTEM": "1",
         "GIT_AUTHOR_NAME": "小壹",
-        "GIT_AUTHOR_EMAIL": "xiaoyi@is1ab.invalid",
+        "GIT_AUTHOR_EMAIL": "xiaoyi@example.invalid",
         "GIT_AUTHOR_DATE": date,
         "GIT_COMMITTER_NAME": "小壹",
-        "GIT_COMMITTER_EMAIL": "xiaoyi@is1ab.invalid",
+        "GIT_COMMITTER_EMAIL": "xiaoyi@example.invalid",
         "GIT_COMMITTER_DATE": date,
     }
 

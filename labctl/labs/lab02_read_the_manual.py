@@ -7,7 +7,7 @@ from labctl.labs.answer_check import seal
 
 LAB_ID = "02-read-the-manual"
 TITLE = "蛛絲電話"
-FLAG = "is1ab{always_read_the_manual}"
+FLAG = "always_read_the_manual"
 
 README = """\
 # 02 蛛絲電話
@@ -102,7 +102,7 @@ def main(args):
 raise SystemExit(main(sys.argv[1:]))
 '''
 
-MANUAL = r""".TH PHONE 1 "2026" "is1ab" "蛛絲電話使用手冊"
+MANUAL = r""".TH PHONE 1 "2026" "shell-lab" "蛛絲電話使用手冊"
 .ad l
 .SH 名稱
 phone \- 蛛絲電話

@@ -8,7 +8,7 @@ from labctl.labs import art
 
 LAB_ID = "07-archive"
 TITLE = "蜜蜂的包裹"
-FLAG = "is1ab{never_trust_a_file_extension}"
+FLAG = "never_trust_a_file_extension"
 
 README = """\
 # 07 蜜蜂的包裹

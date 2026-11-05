@@ -5,7 +5,7 @@ import subprocess
 import sys
 import unittest
 
-from labctl.labs import LABS
+from labctl.labs import LABS, full_flag
 from tests.helpers import EXAMPLE_ENV, REPO, SECRET_HEX, scratch_dir, write_env
 
 
@@ -129,7 +129,7 @@ class LabsCommandTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertTrue((out / "README.md").is_file())
         self.assertEqual(len([p for p in out.iterdir() if p.is_dir()]), 13)
-        self.assertNotIn("is1ab{", result.stdout)  # 產生題目時不印出答案
+        self.assertNotIn("flag{", result.stdout)  # 產生題目時不印出答案
 
     def test_build_rejects_student_not_in_class(self):
         out = scratch_dir() / "lab"
@@ -155,9 +155,14 @@ class LabsCommandTest(unittest.TestCase):
 
     def test_flags_lists_the_answers(self):
         # flag 全班相同，答案就是每題一句，不需要設定檔。
-        result = labctl("labs", "flags")
+        result = labctl("--env", scratch_dir() / "missing.env", "labs", "flags")
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(json.loads(result.stdout), {lab.LAB_ID: lab.FLAG for lab in LABS})
+        self.assertEqual(json.loads(result.stdout), {lab.LAB_ID: full_flag(lab) for lab in LABS})
+
+    def test_flags_use_the_prefix_from_the_settings(self):
+        result = labctl("--env", write_env(FLAG_PREFIX="ctf"), "labs", "flags")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(json.loads(result.stdout), {lab.LAB_ID: full_flag(lab, "ctf") for lab in LABS})
 
 
 class DeployFilesTest(unittest.TestCase):

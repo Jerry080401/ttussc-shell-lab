@@ -4,7 +4,7 @@ from labctl.labs import art
 
 LAB_ID = "04-hidden-file"
 TITLE = "葉子背面的便條"
-FLAG = "is1ab{dotfiles_are_just_shy}"
+FLAG = "dotfiles_are_just_shy"
 
 README = """\
 # 04 葉子背面的便條
@@ -13,7 +13,7 @@ README = """\
 
 ## 你要做的事
 
-走到每一棵樹上找找看，找到便條就讀出來。讀到 `is1ab{...}` 就完成了，把它記下來。
+走到每一棵樹上找找看，找到便條就讀出來。讀到 flag 就完成了，把它記下來。
 
 ## 提示
 

@@ -59,6 +59,7 @@ make cards      # 全班的連線指令，寫到 local/cards.md
 | `SETUP_KEY_DAYS` | setup key 幾天後失效，1 到 30 |
 | `LAB_SSH` | 登入實驗主機用的 `帳號@主機` |
 | `LAB_SECRET` | 產生每個學生的題目資料用的密鑰，`make env` 會自動產生 |
+| `FLAG_PREFIX` | flag 的前綴，例如填 `is1ab` 會得到 `is1ab{...}`。可用英數字、`_`、`-`，最多 32 個字元 |
 | `GUEST_OS` | VM 的系統，`ubuntu-26.04` 或 `ubuntu-24.04` |
 | `GUEST_LOCALE` | VM 的語系。填 `zh_TW.UTF-8` 會另外裝中文的指令說明和 man page |
 | `GUEST_TIMEZONE` | VM 的時區 |

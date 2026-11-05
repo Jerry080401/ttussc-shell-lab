@@ -22,7 +22,7 @@
 
 每個學生的 `~/lab/` 有一份總覽 `README.md`，每題一個資料夾，裡面的 `README.md` 寫故事、要做的事和提示。檔名用英文，因為學生在終端機裡不一定打得出中文。
 
-解開會拿到 flag，格式是 `is1ab{...}`，內容是一句跟這題有關的英文。第 1、2、3、5、8、9、10、12 題的 flag 是用正確答案推出來的金鑰加密的，要照題目用對方法跑附的程式才會印出來，直接 `grep` 找不到。
+解開會拿到 flag，格式是 `前綴{...}`，內容是一句跟這題有關的英文。前綴由 `.env` 的 `FLAG_PREFIX` 決定，預設是 `flag`。第 1、2、3、5、8、9、10、12 題的 flag 是用正確答案推出來的金鑰加密的，要照題目用對方法跑附的程式才會印出來，直接 `grep` 找不到。
 
 答對時會一起印出一張點陣圖，左邊是參考社團 logo 畫的蜘蛛，右邊是跟這題有關的道具（`labctl/labs/art.py`）。第 8 題的 flag 寫在 log 的其中一行，交給 `check` 確認時才會印出圖。題目裡的物品檔案也是點陣圖，用 `cat` 就看得到。
 
@@ -32,23 +32,23 @@ flag 放在學生自己的 VM 裡，有心的學生可以去讀 `check` 的原�
 
 ## 答案
 
-每題的 flag 全班一樣，`python3 -m labctl labs flags` 也印得出來。
+每題的 flag 全班一樣，`python3 -m labctl labs flags` 會依 `.env` 的前綴印出來。下表用預設前綴。
 
 | 題號 | 題目 | flag |
 |---|---|---|
-| 01 | 新朋友報到 | `is1ab{whoami_is_a_deep_question}` |
-| 02 | 蛛絲電話 | `is1ab{always_read_the_manual}` |
-| 03 | 送信到樹洞 | `is1ab{absolute_paths_never_get_lost}` |
-| 04 | 葉子背面的便條 | `is1ab{dotfiles_are_just_shy}` |
-| 05 | 大掃除 | `is1ab{rm_has_no_recycle_bin}` |
-| 06 | 找出那束好絲 | `is1ab{one_real_item_among_many_fakes}` |
-| 07 | 蜜蜂的包裹 | `is1ab{never_trust_a_file_extension}` |
-| 08 | 那通接通的電話 | `is1ab{grep_finds_the_right_line}` |
-| 09 | 本週最佳織網員 | `is1ab{sort_before_you_uniq}` |
-| 10 | 叫醒小蜘蛛 | `is1ab{kill_just_sends_a_signal}` |
-| 11 | 打不開的食譜 | `is1ab{chmod_gave_me_the_key}` |
-| 12 | 修好蛛網 | `is1ab{spot_the_difference_with_diff}` |
-| 13 | 不小心寫下的密碼 | `is1ab{git_never_forgets}` |
+| 01 | 新朋友報到 | `flag{whoami_is_a_deep_question}` |
+| 02 | 蛛絲電話 | `flag{always_read_the_manual}` |
+| 03 | 送信到樹洞 | `flag{absolute_paths_never_get_lost}` |
+| 04 | 葉子背面的便條 | `flag{dotfiles_are_just_shy}` |
+| 05 | 大掃除 | `flag{rm_has_no_recycle_bin}` |
+| 06 | 找出那束好絲 | `flag{one_real_item_among_many_fakes}` |
+| 07 | 蜜蜂的包裹 | `flag{never_trust_a_file_extension}` |
+| 08 | 那通接通的電話 | `flag{grep_finds_the_right_line}` |
+| 09 | 本週最佳織網員 | `flag{sort_before_you_uniq}` |
+| 10 | 叫醒小蜘蛛 | `flag{kill_just_sends_a_signal}` |
+| 11 | 打不開的食譜 | `flag{chmod_gave_me_the_key}` |
+| 12 | 修好蛛網 | `flag{spot_the_difference_with_diff}` |
+| 13 | 不小心寫下的密碼 | `flag{git_never_forgets}` |
 
 ## 題目資料
 
@@ -59,7 +59,7 @@ python3 -m labctl labs build student01 --out /tmp/lab-student01   # 目標資料
 python3 -m labctl labs flags
 ```
 
-第 6、8 題的假 flag 也是一句話，和真的長得一樣，所以 `grep is1ab` 分不出真假，要照題目用 `find` 和 `grep` 的條件找。
+第 6、8 題的假 flag 也是一句話，和真的長得一樣，所以只搜尋前綴分不出真假，要照題目用 `find` 和 `grep` 的條件找。
 
 ## 改題目
 

@@ -4,14 +4,14 @@ import re
 import subprocess
 import unittest
 
-from labctl.labs import LABS, build_labs
+from labctl.labs import LABS, build_labs, full_flag
 from tests.helpers import scratch_dir
 
 SECRET = b"s" * 32
 COHORT = "linux-2026"
-FLAG_RE = re.compile(r"is1ab\{[^}\s]*\}")
+FLAG_RE = re.compile(r"flag\{[^}\s]*\}")
 # 真的 flag 是每題固定的一句話（全班相同），假的 flag 也是一句話。
-SENTENCE_RE = re.compile(r"^is1ab\{[a-z0-9]+(?:_[a-z0-9]+)+\}$")
+SENTENCE_RE = re.compile(r"^flag\{[a-z0-9]+(?:_[a-z0-9]+)+\}$")
 
 
 def new_root():
@@ -45,7 +45,7 @@ def snapshot(root):
 
 def plaintext_flags(workspace):
     """Flags readable with plain grep (ignores .git internals)."""
-    result = sh(workspace, "grep -rhoI --exclude-dir=.git 'is1ab{[0-9a-z_]*}' . || true")
+    result = sh(workspace, "grep -rhoI --exclude-dir=.git 'flag{[0-9a-z_]*}' . || true")
     return set(result.stdout.split())
 
 
@@ -80,7 +80,7 @@ class CatalogTest(unittest.TestCase):
     def test_flags_are_one_sentence_per_lab_for_everyone(self):
         _, first = build("student01")
         _, second = build("student02")
-        self.assertEqual(first, {lab.LAB_ID: lab.FLAG for lab in LABS})
+        self.assertEqual(first, {lab.LAB_ID: full_flag(lab) for lab in LABS})
         self.assertEqual(second, first)
         self.assertEqual(len(set(first.values())), len(LABS))
         for lab_id, flag in first.items():

@@ -1,4 +1,4 @@
-"""用學生會打的指令實際解題：每題都要拿到 is1ab{...}，畫面也要放得進 80 欄的終端機。"""
+"""用學生會打的指令實際解題：每題都要拿到 flag{...}，畫面也要放得進 80 欄的終端機。"""
 
 import functools
 import os
@@ -12,6 +12,7 @@ from pathlib import Path
 
 from labctl.labs import (
     build_labs,
+    full_flag,
     lab01_check_in,
     lab02_read_the_manual,
     lab03_paths,
@@ -57,9 +58,27 @@ class WalkthroughCase(unittest.TestCase):
 
     def assert_solved(self, result, lab):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.assertIn(lab.FLAG, result.stdout)
+        self.assertIn(full_flag(lab), result.stdout)
         for line in result.stdout.splitlines():
             self.assertLessEqual(columns(line), TERMINAL_COLUMNS, line)
+
+
+class FlagPrefixTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.root = scratch_dir() / "lab"
+        build_labs(cls.root, b"s" * 32, "linux-2026", STUDENT, flag_prefix="ctf")
+
+    def test_solved_lab_prints_the_custom_prefix(self):
+        result = sh(self.root / lab01_check_in.LAB_ID, f"./check student {guest_hostname(STUDENT)}")
+        self.assertIn(f"ctf{{{lab01_check_in.FLAG}}}", result.stdout)
+
+    def test_overview_and_decoys_use_the_custom_prefix(self):
+        self.assertIn("`ctf{...}`", (self.root / "README.md").read_text(encoding="utf-8"))
+        for workspace, target in ((lab06_find_real_file, "storage"), (lab08_grep_log, "service.log")):
+            directory = self.root / workspace.LAB_ID
+            self.assertEqual(sh(directory, f"grep -rlF 'flag{{' {target} | wc -l").stdout.strip(), "0")
+            self.assertNotEqual(sh(directory, f"grep -rlF 'ctf{{' {target} | wc -l").stdout.strip(), "0")
 
 
 class Lab01Test(WalkthroughCase):
@@ -71,7 +90,7 @@ class Lab01Test(WalkthroughCase):
         result = sh(self.root / lab01_check_in.LAB_ID, "./check student wrong-host")
         self.assertEqual(result.returncode, 1)
         self.assertIn("whoami", result.stdout)
-        self.assertNotIn("is1ab{", result.stdout)
+        self.assertNotIn("flag{", result.stdout)
 
     def test_missing_arguments_show_usage(self):
         result = sh(self.root / lab01_check_in.LAB_ID, "./check")
@@ -109,7 +128,7 @@ class Lab02Test(WalkthroughCase):
         messages = {sh(workspace, f"./phone -l {number} -d").stdout for number in table.values()}
         self.assertEqual(len(messages), 4)
         for message in messages:
-            self.assertNotIn("is1ab{", message)
+            self.assertNotIn("flag{", message)
             self.assertLessEqual(columns(message.strip()), TERMINAL_COLUMNS, message)
         self.assertIn("沒有人接", sh(workspace, "./phone -l 1 -d").stdout)
 
@@ -135,13 +154,13 @@ class Lab03Test(WalkthroughCase):
         result = sh(self.workspace() / "post-office", "../forest/big-tree/hole/mailbox")
         self.assertEqual(result.returncode, 1)
         self.assertIn("絕對路徑", result.stdout)
-        self.assertNotIn("is1ab{", result.stdout)
+        self.assertNotIn("flag{", result.stdout)
 
     def test_absolute_path_from_elsewhere_says_to_go_to_the_post_office(self):
         result = sh(self.mailbox().parent, str(self.mailbox()))
         self.assertEqual(result.returncode, 1)
         self.assertIn("post-office", result.stdout)
-        self.assertNotIn("is1ab{", result.stdout)
+        self.assertNotIn("flag{", result.stdout)
 
 
 class Lab04Test(WalkthroughCase):
@@ -170,7 +189,7 @@ class Lab05Test(WalkthroughCase):
         self.assertEqual(result.returncode, 1)
         for hint in ("mkdir", "束絲線沒搬", ".leaf", "map.bak"):
             self.assertIn(hint, result.stdout)
-        self.assertNotIn("is1ab{", result.stdout)
+        self.assertNotIn("flag{", result.stdout)
 
     def guarded(self, workspace, script):
         """像學生的 shell 一樣裝好 rm 的保護，在這題的資料夾執行。"""
@@ -224,7 +243,7 @@ class Lab05Test(WalkthroughCase):
         before = {path.name: path.read_bytes() for path in (workspace / "nest").iterdir() if path.suffix != ".leaf"}
         result = sh(workspace, "rm -f nest/*.silk nest/*.water; ./check")
         self.assertEqual(result.returncode, 1)
-        self.assertNotIn("is1ab{", result.stdout)
+        self.assertNotIn("flag{", result.stdout)
         after = {path.name: path.read_bytes() for path in (workspace / "nest").iterdir()}
         self.assertEqual({name: after.get(name) for name in before}, before)
 
@@ -253,18 +272,18 @@ class Lab06Test(WalkthroughCase):
 
 
 class DecoyTest(WalkthroughCase):
-    SENTENCE = "is1ab{[a-z0-9]*_[a-z0-9_]*}"
+    SENTENCE = "flag{[a-z0-9]*_[a-z0-9_]*}"
 
     def test_decoys_in_lab_06_look_like_real_flags(self):
         workspace = self.root / lab06_find_real_file.LAB_ID
         flags = set(sh(workspace, f"grep -rhoE '{self.SENTENCE}' storage").stdout.split())
         self.assertGreater(len(flags), 5)
-        self.assertIn(lab06_find_real_file.FLAG, flags)
+        self.assertIn(full_flag(lab06_find_real_file), flags)
 
     def test_decoys_in_lab_08_look_like_real_flags(self):
         workspace = self.root / lab08_grep_log.LAB_ID
         self.assertGreater(int(sh(workspace, f"grep -cE '{self.SENTENCE}' service.log").stdout), 1000)
-        self.assertEqual(sh(workspace, "grep -cE 'is1ab[{][0-9a-f]{16}[}]' service.log").stdout.strip(), "0")
+        self.assertEqual(sh(workspace, "grep -cE 'flag[{][0-9a-f]{16}[}]' service.log").stdout.strip(), "0")
 
 
 class Lab07Test(WalkthroughCase):
@@ -279,19 +298,19 @@ class Lab07Test(WalkthroughCase):
 
     def test_flag_is_not_readable_without_unwrapping(self):
         workspace = self.root / lab07_archive.LAB_ID
-        self.assertNotIn(b"is1ab{", (workspace / "package.bin").read_bytes())
+        self.assertNotIn(b"flag{", (workspace / "package.bin").read_bytes())
 
 
 class Lab08Test(WalkthroughCase):
     def test_check_confirms_the_real_flag_with_a_picture(self):
         workspace = self.root / lab08_grep_log.LAB_ID
-        result = sh(workspace, f"./check {lab08_grep_log.FLAG}")
+        result = sh(workspace, f"./check {full_flag(lab08_grep_log)}")
         self.assert_solved(result, lab08_grep_log)
         self.assertRegex(result.stdout, "[▀▄█]")
 
     def test_check_refuses_a_decoy_and_the_log_has_no_picture(self):
         workspace = self.root / lab08_grep_log.LAB_ID
-        decoy = sh(workspace, f"grep -m1 -o 'note=is1ab.*' service.log | grep -v {lab08_grep_log.FLAG}").stdout
+        decoy = sh(workspace, f"grep -m1 -o 'note=flag.*' service.log | grep -v {lab08_grep_log.FLAG}").stdout
         result = sh(workspace, f"./check {decoy.strip().removeprefix('note=')}")
         self.assertEqual(result.returncode, 1)
         self.assertNotIn("答對", result.stdout)
@@ -324,7 +343,7 @@ class Lab09Test(WalkthroughCase):
         runner_up = sh(workspace, self.PIPELINE).stdout.split("\n")[1].split()[1]
         result = sh(workspace, f"./check {runner_up}")
         self.assertEqual(result.returncode, 1)
-        self.assertNotIn("is1ab{", result.stdout)
+        self.assertNotIn("flag{", result.stdout)
         for line in result.stdout.splitlines():
             self.assertLessEqual(columns(line), TERMINAL_COLUMNS, line)
 
@@ -344,7 +363,7 @@ class Lab10Test(WalkthroughCase):
     def test_other_signals_explain_what_to_send_instead(self):
         for signal_name in ("TERM", "INT"):
             result = self.run_in_background(signal_name)
-            self.assertNotIn("is1ab{", result.stdout, signal_name)
+            self.assertNotIn("flag{", result.stdout, signal_name)
             self.assertIn("USR1", result.stdout, signal_name)
             for line in result.stdout.splitlines():
                 self.assertLessEqual(columns(line), TERMINAL_COLUMNS, line)
@@ -382,7 +401,7 @@ class Lab12Test(WalkthroughCase):
         result = sh(workspace, "./check")
         self.assertEqual(result.returncode, 1)
         self.assertIn("diff", result.stdout)
-        self.assertNotIn("is1ab{", result.stdout)
+        self.assertNotIn("flag{", result.stdout)
 
     def test_fixing_each_line_from_the_diff_prints_the_flag(self):
         workspace = self.fresh_workspace()
@@ -405,7 +424,7 @@ class Lab13Test(WalkthroughCase):
 
     def test_password_is_deleted_and_flag_stays_out_of_plain_grep(self):
         self.assertFalse((self.repo() / "password.txt").exists())
-        self.assertEqual(sh(self.repo(), "grep -ra 'is1ab{' .").stdout, "")
+        self.assertEqual(sh(self.repo(), "grep -ra 'flag{' .").stdout, "")
 
 
 if __name__ == "__main__":

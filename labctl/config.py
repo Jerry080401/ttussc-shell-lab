@@ -29,6 +29,7 @@ KEYS = (
     "SETUP_KEY_DAYS",
     "LAB_SSH",
     "LAB_SECRET",
+    "FLAG_PREFIX",
     "GUEST_OS",
     "GUEST_LOCALE",
     "GUEST_TIMEZONE",
@@ -59,6 +60,7 @@ _SSH_TARGET = re.compile(r"[A-Za-z0-9._-]+@[A-Za-z0-9.-]+")
 _EMAIL = re.compile(r"[^@\s]+@[^@\s]+\.[^@\s]+")
 _TOKEN = re.compile(r"[A-Za-z0-9_-]{8,200}")
 _SECRET = re.compile(r"[0-9a-f]{64}")
+_FLAG_PREFIX = re.compile(r"[A-Za-z0-9_-]{1,32}")
 _LOCALE = re.compile(r"C\.UTF-8|[a-z]{2,3}_[A-Z]{2}\.UTF-8")
 _TIMEZONE = re.compile(r"UTC|[A-Z][A-Za-z_]+(?:/[A-Z][A-Za-z0-9_+-]*){1,2}")
 _PRIVATE_V4 = [ipaddress.ip_network(n) for n in ("10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16")]
@@ -78,6 +80,7 @@ class Config:
     setup_key_days: int
     lab_ssh: str
     lab_secret: bytes
+    flag_prefix: str
     guest_os: str
     guest_locale: str
     guest_timezone: str
@@ -191,6 +194,7 @@ def _build(v):
     lab_ssh = _match("LAB_SSH", v, _SSH_TARGET, "user@host")
     if v["LAB_SECRET"] and not _SECRET.fullmatch(v["LAB_SECRET"]):
         raise ValueError(f"LAB_SECRET must be {SECRET_BYTES * 2} lowercase hex digits (make env creates one)")
+    flag_prefix = _match("FLAG_PREFIX", v, _FLAG_PREFIX, "letters, digits, _ or -, at most 32 characters")
     if v["GUEST_OS"] not in GUEST_IMAGES:
         raise ValueError(f"GUEST_OS must be one of: {', '.join(GUEST_IMAGES)}")
     locale = _match("GUEST_LOCALE", v, _LOCALE, "a UTF-8 locale such as zh_TW.UTF-8")
@@ -221,6 +225,7 @@ def _build(v):
         setup_key_days=days,
         lab_ssh=lab_ssh,
         lab_secret=bytes.fromhex(v["LAB_SECRET"]),
+        flag_prefix=flag_prefix,
         guest_os=v["GUEST_OS"],
         guest_locale=locale,
         guest_timezone=timezone,

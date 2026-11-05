@@ -150,5 +150,18 @@ class HostEnvTest(unittest.TestCase):
         self.assertEqual(list(parse_env(text)), list(KEYS))
 
 
+class FlagPrefixTest(unittest.TestCase):
+    def test_example_uses_the_neutral_prefix(self):
+        self.assertEqual(example_config().flag_prefix, "flag")
+
+    def test_custom_prefix_is_kept(self):
+        self.assertEqual(example_config(FLAG_PREFIX="is1ab").flag_prefix, "is1ab")
+
+    def test_prefix_cannot_break_the_flag_format(self):
+        for bad in ("", "a{b", "a}b", "x" * 33):
+            with self.assertRaises(ValueError, msg=bad):
+                example_config(FLAG_PREFIX=bad)
+
+
 if __name__ == "__main__":
     unittest.main()

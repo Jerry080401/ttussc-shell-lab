@@ -11,7 +11,7 @@ from labctl import cards, keys, netbird, passwords
 from labctl.cloudinit import render_user_data
 from labctl.config import host_env_text, load_config, select_students
 from labctl.firewall import default_gateways, render_gateway_sync, render_ruleset
-from labctl.labs import LABS, build_labs
+from labctl.labs import DEFAULT_FLAG_PREFIX, LABS, build_labs, full_flag
 from labctl.plan import build_plan, vm_fields
 
 # 這兩個值印出來就外洩了，config get 不給看。
@@ -89,13 +89,14 @@ def cmd_labs_build(args):
     select_students(config.students(), [args.student])  # 不在名單上的學生直接停止
     if not config.lab_secret:
         raise ValueError("LAB_SECRET is empty, create one with: make env")
-    flags = build_labs(args.out, config.lab_secret, config.cohort, args.student, args.round)
+    flags = build_labs(args.out, config.lab_secret, config.cohort, args.student, args.round, config.flag_prefix)
     print(f"built {len(flags)} labs for {args.student} in {args.out}")
 
 
 def cmd_labs_flags(args):
     # flag 是每題固定的一句話，全班相同。
-    print(json.dumps({lab.LAB_ID: lab.FLAG for lab in LABS}, ensure_ascii=False, indent=2))
+    prefix = _config(args).flag_prefix if args.env.is_file() else DEFAULT_FLAG_PREFIX
+    print(json.dumps({lab.LAB_ID: full_flag(lab, prefix) for lab in LABS}, ensure_ascii=False, indent=2))
 
 
 def cmd_passwords_new(args):

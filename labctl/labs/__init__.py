@@ -21,6 +21,8 @@ from labctl.labs import (
 from labctl.labs.flags import derive_seed
 from labctl.labs.workspace import DIR_MODE, Workspace
 
+DEFAULT_FLAG_PREFIX = "flag"
+
 # 題號就是上課做的順序。
 LABS = [
     lab01_check_in,
@@ -39,7 +41,7 @@ LABS = [
 ]
 
 OVERVIEW = """\
-# is1ab Linux Lab
+# Linux Lab
 
 每一題一個資料夾，先進資料夾看說明：
 
@@ -47,15 +49,20 @@ OVERVIEW = """\
     cat README.md
 
 {table}
-解開每一題都會得到一個 flag，格式是 `is1ab{{...}}`，把它記下來。
+解開每一題都會得到一個 flag，格式是 `{flag_prefix}{{...}}`，把它記下來。
 flag 是一句和這題重點有關的英文，字和字之間用 `_` 連接。
 """
 
 
-def build_labs(root, secret, cohort, student_id, round_=1):
+def full_flag(lab, flag_prefix=DEFAULT_FLAG_PREFIX):
+    """學生看到的完整 flag：前綴{這題的那句話}。"""
+    return f"{flag_prefix}{{{lab.FLAG}}}"
+
+
+def build_labs(root, secret, cohort, student_id, round_=1, flag_prefix=DEFAULT_FLAG_PREFIX):
     """Create every lab for one student under an empty `root`, returning {lab_id: flag}.
 
-    Flags are one fixed sentence per lab (the same for everyone). The secret only
+    Flags are `flag_prefix{sentence}` with one fixed sentence per lab (the same for everyone). The secret only
     decides each student's data.
     """
     root = Path(root)
@@ -65,10 +72,10 @@ def build_labs(root, secret, cohort, student_id, round_=1):
     root.chmod(DIR_MODE)
     flags = {}
     for lab in LABS:
-        flag = lab.FLAG
+        flag = full_flag(lab, flag_prefix)
         rng = random.Random(derive_seed(secret, cohort, student_id, lab.LAB_ID, round_))
         lab.seed(Workspace(Workspace(root).mkdir(lab.LAB_ID)), flag, rng, student_id)
         flags[lab.LAB_ID] = flag
     table = "".join(f"    {lab.LAB_ID:<20} {lab.TITLE}\n" for lab in LABS)
-    Workspace(root).write("README.md", OVERVIEW.format(table=table))
+    Workspace(root).write("README.md", OVERVIEW.format(table=table, flag_prefix=flag_prefix))
     return flags

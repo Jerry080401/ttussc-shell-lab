@@ -5,7 +5,7 @@ from labctl.labs.answer_check import seal
 
 LAB_ID = "03-paths"
 TITLE = "送信到樹洞"
-FLAG = "is1ab{absolute_paths_never_get_lost}"
+FLAG = "absolute_paths_never_get_lost"
 
 README = """\
 # 03 送信到樹洞

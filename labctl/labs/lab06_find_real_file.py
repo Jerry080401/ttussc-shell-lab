@@ -5,12 +5,12 @@ from labctl.labs.flags import decoy_flag
 
 LAB_ID = "06-find-real-file"
 TITLE = "找出那束好絲"
-FLAG = "is1ab{one_real_item_among_many_fakes}"
+FLAG = "one_real_item_among_many_fakes"
 
 README = """\
 # 06 找出那束好絲
 
-小壹要補網，請你去儲藏室 `storage/` 領一束絲。裡面的絲束看起來都一樣，每束都掛著一組 `is1ab{{...}}` 標籤，但只有一束符合訂單。
+小壹要補網，請你去儲藏室 `storage/` 領一束絲。裡面的絲束看起來都一樣，每束都掛著一個 flag 標籤，但只有一束符合訂單。
 
 ## 訂單
 
@@ -65,14 +65,14 @@ def seed(ws, flag, rng, student_id):
             ext, size, content_flag = (
                 "silk",
                 rng.choice([real_size - rng.randint(1, 300), real_size + rng.randint(1, 300)]),
-                decoy_flag(rng),
+                decoy_flag(rng, flag),
             )
         elif kind == "right-size-wrong-ext":
-            ext, size, content_flag = rng.choice(EXTENSIONS[1:]), real_size, decoy_flag(rng)
+            ext, size, content_flag = rng.choice(EXTENSIONS[1:]), real_size, decoy_flag(rng, flag)
         else:
             ext = rng.choice(EXTENSIONS)
             size = BASE + rng.randint(800, 2300)
             while size == real_size:
                 size = BASE + rng.randint(800, 2300)
-            content_flag = decoy_flag(rng)
+            content_flag = decoy_flag(rng, flag)
         ws.write(f"storage/{shelf}/item-{number}.{ext}", _item(number, content_flag, size))

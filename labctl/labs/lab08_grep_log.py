@@ -8,7 +8,7 @@ from labctl.labs.flags import decoy_flag
 
 LAB_ID = "08-grep-log"
 TITLE = "那通接通的電話"
-FLAG = "is1ab{grep_finds_the_right_line}"
+FLAG = "grep_finds_the_right_line"
 
 README = """\
 # 08 那通接通的電話
@@ -56,7 +56,7 @@ def seed(ws, flag, rng, student_id):
         else:
             user = "xiaoyi" if rng.random() < 0.08 else rng.choice(USERS)
             result = "failure" if user == "xiaoyi" else rng.choice(("success", "success", "failure"))
-            note = f" note={decoy_flag(rng)}" if rng.random() < 0.1 else ""
+            note = f" note={decoy_flag(rng, flag)}" if rng.random() < 0.1 else ""
         stamp = (START + timedelta(seconds=index * 7 + rng.randint(0, 6))).isoformat()
         level = "INFO" if result == "success" else "WARN"
         host = rng.getrandbits(24)

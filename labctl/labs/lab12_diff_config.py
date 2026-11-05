@@ -5,7 +5,7 @@ from labctl.labs.answer_check import render_check
 
 LAB_ID = "12-diff-config"
 TITLE = "修好蛛網"
-FLAG = "is1ab{spot_the_difference_with_diff}"
+FLAG = "spot_the_difference_with_diff"
 
 README = """\
 # 12 修好蛛網

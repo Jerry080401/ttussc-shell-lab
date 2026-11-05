@@ -7,7 +7,7 @@ from labctl.labs.answer_check import render_check
 
 LAB_ID = "09-sort-uniq"
 TITLE = "本週最佳織網員"
-FLAG = "is1ab{sort_before_you_uniq}"
+FLAG = "sort_before_you_uniq"
 
 README = """\
 # 09 本週最佳織網員

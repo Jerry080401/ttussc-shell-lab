@@ -4,7 +4,7 @@ from labctl.labs import art
 
 LAB_ID = "11-chmod"
 TITLE = "打不開的食譜"
-FLAG = "is1ab{chmod_gave_me_the_key}"
+FLAG = "chmod_gave_me_the_key"
 
 README = """\
 # 11 打不開的食譜

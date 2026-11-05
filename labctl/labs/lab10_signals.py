@@ -5,7 +5,7 @@ from labctl.labs.answer_check import seal
 
 LAB_ID = "10-signals"
 TITLE = "叫醒小蜘蛛"
-FLAG = "is1ab{kill_just_sends_a_signal}"
+FLAG = "kill_just_sends_a_signal"
 
 README = """\
 # 10 叫醒小蜘蛛
