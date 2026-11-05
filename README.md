@@ -12,26 +12,26 @@
 
 - 一台 VPS 跑 NetBird 伺服器：Ubuntu 24.04 或 26.04，2 GB 記憶體，要有公網 IP，對外開 TCP 22、80、443 和 UDP 3478。另外要一個網域，A 紀錄指到這台 VPS，用 Cloudflare 的話要設成 DNS only。
 - 一台實驗主機放學生的 VM：Ubuntu 24.04 或 26.04，x86_64，要有 `/dev/kvm`。不需要公網 IP。不要裝 Docker，它會把轉送的預設規則改成 DROP，VM 會上不了網。
-- 老師自己的電腦（Linux 或 WSL）：要有 `make`、`python3`（含 venv）、`terraform` 和 `ssh`，而且要能 SSH 進 VPS 和實驗主機。實驗主機上的帳號要能免密碼 sudo。
+- 老師自己的電腦（Linux 或 WSL）：要有 `make`、`python3`（含 venv）、[Terraform](https://developer.hashicorp.com/terraform/install) 1.16.4 和 `ssh`，而且要能 SSH 進 VPS 和實驗主機。實驗主機上的帳號要能免密碼 sudo。
 
 ## 安裝
 
-```bash
-make env        # 產生 .env，照下面的表填好
-make netbird    # 在 VPS 上裝 NetBird，管理員密碼存在 local/netbird-admin-password
-```
+| 指令 | 做什麼 |
+|---|---|
+| `make env` | 產生 .env，照下面的表填好 |
+| `make netbird` | 在 VPS 上裝 NetBird，管理員密碼存在 local/netbird-admin-password |
 
 用 `ADMIN_EMAIL` 和這組密碼登入 `https://NETBIRD_DOMAIN`，幫自己的帳號建一個 Personal Access Token，填進 `.env` 的 `NETBIRD_PAT`，再接著做：
 
-```bash
-make keys       # NetBird 的群組、規則和一次性 setup key
-make host       # 實驗主機：Incus 和隔離 VM 的防火牆
-make vms        # 建全班的 VM，會先建兩台試跑
-make enroll     # 讓每台 VM 加入 NetBird
-make labs       # 放題目
-make passwords  # 產生學生密碼，設定到 VM 裡
-make cards      # 全班的連線指令，寫到 local/cards.md
-```
+| 指令 | 做什麼 |
+|---|---|
+| `make keys` | NetBird 的群組、規則和一次性 setup key |
+| `make host` | 實驗主機：Incus 和隔離 VM 的防火牆 |
+| `make vms` | 建全班的 VM，會先建兩台試跑 |
+| `make enroll` | 讓每台 VM 加入 NetBird |
+| `make labs` | 放題目 |
+| `make passwords` | 產生學生密碼，設定到 VM 裡 |
+| `make cards` | 全班的連線指令，寫到 local/cards.md |
 
 老師的電腦也要加入 NetBird 才連得到 VM。key 在 `terraform -chdir=netbird/terraform output -json setup_keys` 的 `teachers` 裡，用 `netbird up --management-url https://NETBIRD_DOMAIN --setup-key 那把key` 加入。
 
@@ -81,11 +81,11 @@ make cards      # 全班的連線指令，寫到 local/cards.md
 
 ## 上課
 
-```bash
-make class-start  # 上課前十分鐘左右開 NetBird
-make status       # 看全班的 VM 和學生電腦有沒有連上
-make class-stop   # 下課後關 NetBird，VPS 對外只剩 SSH
-```
+| 指令 | 做什麼 |
+|---|---|
+| `make class-start` | 上課前十分鐘左右開 NetBird |
+| `make status` | 看全班的 VM 和學生電腦有沒有連上 |
+| `make class-stop` | 下課後關 NetBird，VPS 對外只剩 SSH |
 
 ## 常見狀況
 
@@ -99,10 +99,10 @@ make class-stop   # 下課後關 NetBird，VPS 對外只剩 SSH
 
 ## 課程結束
 
-```bash
-make teardown     # VM 關機，也不會跟著主機開機，再停掉 Incus 和隔離防火牆
-make class-stop
-```
+| 指令 | 做什麼 |
+|---|---|
+| `make teardown` | VM 關機，也不會跟著主機開機，再停掉 Incus 和隔離防火牆 |
+| `make class-stop` | 關掉 NetBird |
 
 VM 和學生的資料都會留著，要再上課的話重跑 `make host` 和 `make vms`。
 
@@ -123,13 +123,7 @@ setup key 都只能用一次。密碼和 key 只經過 stdin 傳到主機和 VM�
 
 ## 開發
 
-```bash
-make test   # 測試
-make lint   # ruff、shellcheck、terraform fmt
-make fmt    # 自動整理格式
-```
-
-防火牆的封包測試需要 `unshare`、`nsenter`、`ip`、`ping` 和 `nft`，缺了會跳過。CI 會用 root 跑。
+要改程式或跑檢查，請看 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
 ## 授權
 
