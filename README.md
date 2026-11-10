@@ -1,6 +1,24 @@
 # shell-lab
 
-「Linux 常用指令」課程用的實驗環境模板，可以依不同課程或學校調整。每個學生分到一台 Ubuntu VM，先用 NetBird 加入課程的私人網路，再 SSH 進自己的 VM 做題目。題目有 13 題，解開會拿到 flag。
+「Linux 常用指令」課程用的實驗環境模板，可以依不同課程或學校調整。每個人分到一台自己的 Ubuntu 環境，SSH 進去做題目。題目有 13 題，解開會拿到 flag。
+
+## 選擇部署方案
+
+題目（`labctl/`）共用，部署方式有兩種，依手上的環境選一種：
+
+| | NetBird 版 | PVE LXC 版 |
+|---|---|---|
+| 連線方式 | WireGuard overlay 網路，使用者端要裝 NetBird | 主機用 iptables 把對外介面的不同連接埠轉發到各容器的 SSH，使用者端只需要 ssh |
+| 每人的環境 | Incus/KVM VM，各自的核心 | Proxmox VE 原生 LXC 容器，和主機共用核心 |
+| 存取控制 | 每人一條 NetBird 規則，只連得到自己的 VM | iptables 限制來源網段（`ALLOWED_SOURCE_CIDR`） |
+| 環境之間的隔離 | nftables 隔離 VM 彼此、主機和內網 | 尚未隔離 |
+| 需要的機器 | 有公網 IP 的 VPS，加上有 `/dev/kvm` 的實驗主機 | 一台 PVE 主機，要有使用者連得到的位址 |
+| 放題目 | `make labs` | 尚未支援 |
+| 怎麼部署 | 見下面的 [NetBird 版](#netbird-版) | 見下面的 [PVE LXC 版](#pve-lxc-版) |
+
+## NetBird 版
+
+每個學生分到一台 Ubuntu VM，先用 NetBird 加入課程的私人網路，再 SSH 進自己的 VM 做題目。
 
 ```text
 學生筆電 ──NetBird（WireGuard）──> 自己的 VM（實驗主機上的 Incus/KVM）
@@ -8,13 +26,13 @@
     └──────── 註冊 ──> NetBird 伺服器（VPS）<── 註冊 ┘
 ```
 
-## 需要的機器
+### 需要的機器
 
 - 一台 VPS 跑 NetBird 伺服器：Ubuntu 24.04 或 26.04，2 GB 記憶體，要有公網 IP，對外開 TCP 22、80、443 和 UDP 3478。另外要一個網域，A 紀錄指到這台 VPS，用 Cloudflare 的話要設成 DNS only。
 - 一台實驗主機放學生的 VM：Ubuntu 24.04 或 26.04，x86_64，要有 `/dev/kvm`。不需要公網 IP。不要裝 Docker，它會把轉送的預設規則改成 DROP，VM 會上不了網。
 - 老師自己的電腦（Linux 或 WSL）：要有 `make`、`python3`（含 venv）、[Terraform](https://developer.hashicorp.com/terraform/install) 1.16.4 和 `ssh`，而且要能 SSH 進 VPS 和實驗主機。實驗主機上的帳號要能免密碼 sudo。
 
-## 安裝
+### 安裝
 
 | 指令 | 做什麼 |
 |---|---|
@@ -39,7 +57,7 @@
 
 每個指令都可以重跑，做過的部分會跳過。打 `make` 可以看到全部的指令。
 
-## 當成模板使用
+### 當成模板使用
 
 這個專案是模板，每次開課只要調整下面這些地方：
 
@@ -50,7 +68,7 @@
 | 題目故事、提示和 flag 句子 | `labctl/labs/labNN_*.py`，做法見[題目](docs/LABS.md) |
 | 答對時印出的圖 | `labctl/labs/art.py` |
 
-## 設定
+### 設定
 
 設定全部放在 `.env`。裡面有密碼和 token，權限要設成 600，別人讀得到的話 labctl 會直接停下來。值不要加引號，也不要有空白。
 
@@ -79,7 +97,7 @@
 | `VM_NETWORK_POOL` | VM 用的私有網段，每台依序切一個 /28 |
 | `PROTECTED_NETWORKS` | 另外不讓 VM 連的網段，用逗號分隔。學校或公司內網用的是公網位址時要填 |
 
-## 上課
+### 上課
 
 | 指令 | 做什麼 |
 |---|---|
@@ -87,7 +105,7 @@
 | `make status` | 看全班的 VM 和學生電腦有沒有連上 |
 | `make class-stop` | 下課後關 NetBird，VPS 對外只剩 SSH |
 
-## 常見狀況
+### 常見狀況
 
 | 狀況 | 做法 |
 |---|---|
@@ -97,7 +115,7 @@
 | 撤掉一位學生 | 把他的 ID 加進 `REVOKED_STUDENTS`，再跑 `make keys` |
 | 學生人數改了 | 改 `STUDENT_COUNT`，再跑 `make keys host vms enroll labs passwords cards`。人數變少時，多出來的 VM 不會自動刪掉，但一樣會被隔離 |
 
-## 課程結束
+### 課程結束
 
 | 指令 | 做什麼 |
 |---|---|
@@ -108,7 +126,7 @@ VM 和學生的資料都會留著，要再上課的話重跑 `make host` 和 `ma
 
 NetBird 的資料沒有備份。VPS 壞掉的話，先把 `local/terraform.tfstate*` 移到別的地方，重跑 `make netbird`，建一個新的 Personal Access Token，跑 `make keys`，最後用 `make enroll` 和 `make cards` 讓 VM 和學生的電腦重新加入。要升級 NetBird 時，改 `versions.lock.json` 裡的版本和映像 digest，再跑 `make netbird`。上課期間不要升級。
 
-## 隔離怎麼做
+### 隔離怎麼做
 
 NetBird 預設的 All 政策會被關掉。每個學生只有一條規則：自己的電腦連自己的 VM，而且只開 TCP 22。`make keys` 跑完會再用 API 檢查一次，只要還有開著的政策用到 All 群組就會報錯。
 
@@ -116,9 +134,23 @@ NetBird 預設的 All 政策會被關掉。每個學生只有一條規則：自�
 
 setup key 都只能用一次。密碼和 key 只經過 stdin 傳到主機和 VM，不會出現在指令參數裡。`.env` 和 `local/` 都不進 Git。
 
+## PVE LXC 版
+
+在一台 Proxmox VE 主機上建 NAT 橋接和 N 台 Ubuntu 24.04 LXC 容器，每台容器對應主機對外介面上的一個連接埠，使用者用 `ssh 帳號@主機位址 -p 連接埠` 連進自己的容器。設定放在 `deploy/pve/shell-lab.env`，和 NetBird 版的 `.env` 分開。
+
+| 指令 | 做什麼 |
+|---|---|
+| `cp deploy/pve/shell-lab.env.example deploy/pve/shell-lab.env` | 建立設定檔，填好 `PVE_SSH`、`ALLOWED_SOURCE_CIDR` 等 |
+| `make pve-dry-run` | 預覽會做的事 |
+| `make pve` | 在 PVE 主機上建立全部，連線資訊存到 `local/pve-credentials.txt` |
+| `make pve-stop` / `make pve-start` | 關閉／啟動所有容器 |
+| `make pve-destroy` | 刪除所有容器和轉發規則 |
+
+前置需求、每個設定的說明、直接在 PVE 主機上跑腳本的方式和安全注意事項見 [deploy/pve/README.md](deploy/pve/README.md)。
+
 ## 文件
 
-- [學生連線說明](docs/STUDENT_GUIDE.md)：課前準備和上課時的連線步驟，可以直接發給學生
+- [學生連線說明](docs/STUDENT_GUIDE.md)（NetBird 版）：課前準備和上課時的連線步驟，可以直接發給學生
 - [題目](docs/LABS.md)：每題在練什麼、答案、資料怎麼產生、怎麼改題目
 
 ## 開發
