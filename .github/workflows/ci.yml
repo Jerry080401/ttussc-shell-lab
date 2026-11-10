@@ -30,7 +30,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - run: shellcheck -x host/*.sh host/gateway-sync tests/netlab.sh deploy/pve/*.sh
+      - run: shellcheck -x host/*.sh host/gateway-sync tests/netlab.sh deploy/pve/*.sh deploy/pve/access/*.sh
 
   terraform:
     runs-on: ubuntu-24.04

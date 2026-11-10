@@ -129,8 +129,8 @@ pve-check:
 
 # 送 labctl 和腳本，保持 repo 的目錄結構。主機上的設定檔和連線資訊檔在 deploy/pve，不會被覆蓋。
 pve-upload: pve-check
-	tar -cz --exclude=__pycache__ labctl deploy/pve/shell-lab-setup.sh | ssh $(PVE_SSH) \
-		"$(PVE_ROOT) sh -c 'mkdir -p -m 700 $(PVE_DIR) && rm -rf $(PVE_DIR)/labctl && tar -xz --no-same-owner -C $(PVE_DIR)'"
+	tar -cz --exclude=__pycache__ labctl deploy/pve/shell-lab-setup.sh deploy/pve/access | ssh $(PVE_SSH) \
+		"$(PVE_ROOT) sh -c 'mkdir -p -m 700 $(PVE_DIR) && rm -rf $(PVE_DIR)/labctl $(PVE_DIR)/deploy/pve/access && tar -xz --no-same-owner -C $(PVE_DIR)'"
 	ssh $(PVE_SSH) "$(PVE_ROOT) sh -c 'umask 077 && cat >$(PVE_DIR)/deploy/pve/shell-lab.env'" <$(PVE_ENV)
 
 pve-dry-run: pve-upload ## PVE LXC 版：預覽會做的事，不做任何變更
@@ -160,7 +160,7 @@ test: ## 跑測試
 lint: ## 檢查程式格式
 	ruff check .
 	ruff format --check .
-	shellcheck -x host/*.sh host/gateway-sync tests/netlab.sh deploy/pve/*.sh
+	shellcheck -x host/*.sh host/gateway-sync tests/netlab.sh deploy/pve/*.sh deploy/pve/access/*.sh
 	terraform -chdir=netbird/terraform fmt -check -recursive
 
 fmt: ## 自動整理程式格式

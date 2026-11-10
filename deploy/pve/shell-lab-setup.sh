@@ -1,13 +1,13 @@
 #!/bin/bash
 # 在 Proxmox VE 主機上用原生 LXC 部署 shell-lab：
-# 一座 NAT 橋接、每人一台 Ubuntu 容器，以及「對外介面:埠 → 容器:22」的轉發規則。
+# 一座 NAT 橋接、每人一台 Ubuntu 容器，以及讓使用者連進容器的連線方式（access/<ACCESS_MODE>.sh）。
 #
 # 用法（root）：shell-lab-setup.sh [--dry-run | --stop | --start | --destroy]
-#   （無）      建立 NAT 橋接、全部容器和轉發規則，並產生連線資訊檔
+#   （無）      建立 NAT 橋接、連線方式和全部容器，並產生連線資訊檔
 #   --dry-run   只印出會做的事，不實際執行
 #   --stop      關閉所有容器（保留）
 #   --start     啟動所有容器
-#   --destroy   刪除所有容器與轉發規則（需要確認）
+#   --destroy   刪除所有容器和連線方式（需要確認）
 #
 # 設定：同目錄的 shell-lab.env（從 shell-lab.env.example 複製），由 labctl 檢查並補上預設值。
 # 也可以用 ENV_FILE=路徑 指定別的設定檔。labctl 在這支腳本往上兩層的目錄（repo 根目錄）。
@@ -18,8 +18,6 @@ repo=$(readlink -f "$here/../..")
 ENV_FILE=${ENV_FILE:-$here/shell-lab.env}
 
 CRED_FILE=$here/shell-lab-credentials.txt
-FORWARD_HOOK=/etc/network/if-up.d/shell-lab-portforward
-DNAT_CHAIN=SHELL_LAB_DNAT
 INTERFACES=/etc/network/interfaces
 BRIDGE_MARKER="# shell-lab NAT bridge (managed by shell-lab-setup.sh)"
 PASSWORD_LENGTH=12
@@ -70,11 +68,14 @@ load_settings() {
     # labctl 只輸出檢查過的 KEY=value，值裡沒有空白、引號或 $。
     eval "$settings"
     mapfile -t STUDENTS < <(labctl pve students)
+    [ -f "$here/access/$ACCESS_MODE.sh" ] || die "找不到連線方式 $here/access/$ACCESS_MODE.sh"
+    # shellcheck source=access/portforward.sh
+    . "$here/access/$ACCESS_MODE.sh"
 }
 
-# 讀一位學生的容器欄位：ct_info student01 → CTID CT_NAME ADDRESS PORT
+# 讀一位學生的容器欄位：ct_info student01 → CTID CT_NAME ADDRESS
 ct_info() {
-    read -r CTID CT_NAME ADDRESS PORT < <(labctl pve ct "$1" ctid hostname address port)
+    read -r CTID CT_NAME ADDRESS < <(labctl pve ct "$1" ctid hostname address)
 }
 
 ct_exists() { pct status "$1" >/dev/null 2>&1; }
@@ -107,17 +108,6 @@ precheck() {
             )"
         fi
     fi
-}
-
-resolve_address() {
-    if [ -z "$PORTFORWARD_ADDRESS" ]; then
-        PORTFORWARD_ADDRESS=$(ip -4 -o addr show dev "$PORTFORWARD_IFACE" 2>/dev/null | awk '{split($4, a, "/"); print a[1]; exit}')
-        [ -n "$PORTFORWARD_ADDRESS" ] || {
-            soft_die "取不到 $PORTFORWARD_IFACE 的 IPv4 位址，請在設定檔填 PORTFORWARD_ADDRESS"
-            PORTFORWARD_ADDRESS="<PORTFORWARD_ADDRESS>"
-        }
-    fi
-    ok "連線位址 $PORTFORWARD_ADDRESS（$PORTFORWARD_IFACE）"
 }
 
 # ---- NAT 橋接 ----
@@ -154,51 +144,6 @@ setup_bridge() {
         ok "已寫入 $INTERFACES"
     fi
     run ifreload -a
-}
-
-# ---- 連接埠轉發 ----
-forward_hook() {
-    local sid
-    cat <<EOF
-#!/bin/sh
-# 由 shell-lab-setup.sh 產生：$PORTFORWARD_IFACE 上的 TCP 埠 → 容器的 22 埠，只接受 $PORTFORWARD_SOURCES。
-# 重跑 shell-lab-setup.sh 會覆寫這個檔案，--destroy 會刪掉它和規則。
-[ -z "\${IFACE:-}" ] || [ "\$IFACE" = "$NAT_BRIDGE" ] || [ "\$IFACE" = "--all" ] || exit 0
-iptables -t nat -N $DNAT_CHAIN 2>/dev/null || true
-iptables -t nat -F $DNAT_CHAIN
-iptables -t nat -C PREROUTING -i $PORTFORWARD_IFACE -p tcp -j $DNAT_CHAIN 2>/dev/null ||
-	iptables -t nat -A PREROUTING -i $PORTFORWARD_IFACE -p tcp -j $DNAT_CHAIN
-EOF
-    for sid in "${STUDENTS[@]}"; do
-        ct_info "$sid"
-        printf 'iptables -t nat -A %s -s %s -p tcp --dport %s -j DNAT --to-destination %s:22\n' \
-            "$DNAT_CHAIN" "$PORTFORWARD_SOURCES" "$PORT" "$ADDRESS"
-    done
-}
-
-setup_forwarding() {
-    local last=$((PORTFORWARD_PORT_START + STUDENT_COUNT - 1))
-    step "連接埠轉發 $PORTFORWARD_IFACE:$PORTFORWARD_PORT_START-$last → 容器:22（來源 $PORTFORWARD_SOURCES）"
-    if $DRY_RUN; then
-        printf '    %s[dry-run]%s 寫入 %s 並執行：\n' "$C_DIM" "$C_RESET" "$FORWARD_HOOK"
-        forward_hook | sed 's/^/        /'
-        return
-    fi
-    mkdir -p "$(dirname "$FORWARD_HOOK")"
-    forward_hook >"$FORWARD_HOOK.new"
-    chmod 755 "$FORWARD_HOOK.new"
-    mv "$FORWARD_HOOK.new" "$FORWARD_HOOK"
-    env -u IFACE "$FORWARD_HOOK"
-    ok "規則已載入，開機時由 $FORWARD_HOOK 自動載入"
-}
-
-remove_forwarding() {
-    step "移除連接埠轉發"
-    iptables -t nat -D PREROUTING -i "$PORTFORWARD_IFACE" -p tcp -j "$DNAT_CHAIN" 2>/dev/null || true
-    iptables -t nat -F "$DNAT_CHAIN" 2>/dev/null || true
-    iptables -t nat -X "$DNAT_CHAIN" 2>/dev/null || true
-    rm -f "$FORWARD_HOOK"
-    ok "已刪除 $DNAT_CHAIN 和 $FORWARD_HOOK"
 }
 
 # ---- 容器 ----
@@ -243,7 +188,7 @@ provision() {
     # 密碼從 stdin 傳進去，不出現在指令參數裡。
     printf 'student:%s\n' "$pw" | pct exec "$CTID" -- chpasswd || return 1
     pct exec "$CTID" -- sh -c 'systemctl enable ssh >/dev/null 2>&1; systemctl restart ssh' || return 1
-    printf '%s\tssh student@%s -p %s\t%s\n' "$SID" "$PORTFORWARD_ADDRESS" "$PORT" "$pw" >>"$CRED_FILE"
+    printf '%s\t%s\t%s\n' "$SID" "$(access_connect "$SID")" "$pw" >>"$CRED_FILE"
 }
 
 create_containers() {
@@ -258,7 +203,7 @@ create_containers() {
     for SID in "${STUDENTS[@]}"; do
         i=$((i + 1))
         ct_info "$SID"
-        step "[$i/${#STUDENTS[@]}] CT $CTID $CT_NAME  $ADDRESS  ←  $PORTFORWARD_ADDRESS:$PORT"
+        step "[$i/${#STUDENTS[@]}] CT $CTID $CT_NAME  $ADDRESS  ←  $(access_connect "$SID")"
         if ! $DRY_RUN && ct_exists "$CTID"; then
             ct_owned || die "CT $CTID 已被其他容器使用，請調整 CTID_START"
             ok "已存在，略過（密碼見原本的連線資訊檔）"
@@ -325,12 +270,12 @@ list_one() { printf '      CT %s  %s\n' "$CTID" "$CT_NAME"; }
 cmd_create() {
     step "前置檢查"
     precheck true
-    resolve_address
+    access_prepare
     setup_bridge
     if ! $DRY_RUN; then
         sysctl -q -w net.ipv4.ip_forward=1
     fi
-    setup_forwarding
+    access_apply
     create_containers
     if $DRY_RUN; then
         step "dry-run 結束，沒有做任何變更"
@@ -354,14 +299,14 @@ cmd_start() {
 cmd_destroy() {
     local answer
     precheck false
-    step "即將刪除下列容器（含硬碟）、轉發規則 $DNAT_CHAIN 和連線資訊檔："
+    step "即將刪除下列容器（含硬碟）、連線方式 $ACCESS_MODE 和連線資訊檔："
     each_owned list_one
     printf '%s輸入 yes 確認刪除：%s' "$C_YELLOW" "$C_RESET"
     read -r answer || true
     [ "$answer" = yes ] || die "已取消"
     step "刪除容器"
     each_owned destroy_one
-    remove_forwarding
+    access_remove
     rm -f "$CRED_FILE"
     ok "已刪除 $CRED_FILE"
     step "完成。NAT 橋接 $NAT_BRIDGE 保留在 $INTERFACES，不需要的話手動刪掉那一段後 ifreload -a"
