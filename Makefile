@@ -24,7 +24,7 @@ export TF_VAR_management_url := https://$(NETBIRD_DOMAIN)
 export TF_VAR_setup_key_days := $(SETUP_KEY_DAYS)
 
 .PHONY: help env check netbird class-start class-stop keys renew-keys host vms enroll labs passwords cards status \
-	reset-lab teardown test lint fmt
+	reset-lab teardown pve-check pve-upload pve-dry-run pve pve-stop pve-start pve-destroy test lint fmt
 
 help: ## 列出所有指令
 	@grep -E '^[a-z-]+:.*## ' $(firstword $(MAKEFILE_LIST)) | awk -F':.*## ' '{printf "  make %-12s %s\n", $$1, $$2}'
@@ -101,6 +101,48 @@ status: check ## 看全班的 VM 和電腦在不在線
 
 teardown: check ## 課程結束：VM 關機，停掉 Incus 和隔離防火牆
 	$(ON_HOST)/teardown.sh
+
+# PVE LXC 版：設定在 deploy/pve/shell-lab.env，和上面 NetBird 版的 .env 分開。
+# 把腳本和設定送到 PVE 主機，以 root 執行（PVE_SSH 不是 root 時用 sudo）。
+PVE_ENV ?= deploy/pve/shell-lab.env
+PVE_DIR ?= /opt/shell-lab/pve
+pve_get = $(shell sed -n 's/^$(1)=//p' $(PVE_ENV) 2>/dev/null)
+PVE_SSH := $(call pve_get,PVE_SSH)
+PVE_CRED := $(or $(call pve_get,CRED_FILE),shell-lab-credentials.txt)
+PVE_CRED_REMOTE := $(if $(filter /%,$(PVE_CRED)),$(PVE_CRED),$(PVE_DIR)/$(PVE_CRED))
+PVE_ROOT := s=; [ \$$(id -u) = 0 ] || s=sudo; \$$s
+PVE_SETUP := $(PVE_ROOT) $(PVE_DIR)/shell-lab-setup.sh
+PVE_LOCAL_CRED := local/pve-credentials.txt
+
+pve-check:
+	@[ -f $(PVE_ENV) ] || { echo "$(PVE_ENV) not found: cp deploy/pve/shell-lab.env.example $(PVE_ENV)" >&2; exit 1; }
+	@[ -n "$(PVE_SSH)" ] || { echo "set PVE_SSH in $(PVE_ENV)" >&2; exit 1; }
+	@mkdir -p -m 700 local
+
+pve-upload: pve-check
+	tar -cz -C deploy/pve shell-lab-setup.sh | ssh $(PVE_SSH) "$(PVE_ROOT) sh -c 'mkdir -p -m 700 $(PVE_DIR) && tar -xz --no-same-owner -C $(PVE_DIR)'"
+	ssh $(PVE_SSH) "$(PVE_ROOT) sh -c 'umask 077 && cat >$(PVE_DIR)/shell-lab.env'" <$(PVE_ENV)
+
+pve-dry-run: pve-upload ## PVE LXC 版：預覽會做的事，不做任何變更
+	ssh $(PVE_SSH) "$(PVE_SETUP) --dry-run"
+
+# 連線資訊抓回 local/ 後刪掉主機上那份。重跑時只會有新建的容器，附加到本機檔案的後面。
+pve: pve-upload ## PVE LXC 版：建立 NAT 橋接、容器和轉發規則，連線資訊存到 local/pve-credentials.txt
+	ssh $(PVE_SSH) "$(PVE_SETUP)"
+	@umask 077; tmp=local/.pve-credentials.tmp; \
+	ssh $(PVE_SSH) "$(PVE_ROOT) sh -c '[ ! -f $(PVE_CRED_REMOTE) ] || { cat $(PVE_CRED_REMOTE) && rm -f $(PVE_CRED_REMOTE); }'" >$$tmp; \
+	if [ -s $(PVE_LOCAL_CRED) ]; then grep -v '^#' $$tmp >>$(PVE_LOCAL_CRED) || true; else cat $$tmp >$(PVE_LOCAL_CRED); fi; \
+	rm -f $$tmp; echo "connection info: $(PVE_LOCAL_CRED)"
+
+pve-stop: pve-upload ## PVE LXC 版：關閉所有容器（保留）
+	ssh $(PVE_SSH) "$(PVE_SETUP) --stop"
+
+pve-start: pve-upload ## PVE LXC 版：啟動所有容器
+	ssh $(PVE_SSH) "$(PVE_SETUP) --start"
+
+pve-destroy: pve-upload ## PVE LXC 版：刪除所有容器、轉發規則和連線資訊（要輸入 yes 確認）
+	ssh -t $(PVE_SSH) "$(PVE_SETUP) --destroy"
+	rm -f $(PVE_LOCAL_CRED)
 
 test: ## 跑測試
 	$(PYTHON) -m unittest discover -s tests -t .
