@@ -3,8 +3,19 @@ import subprocess
 import sys
 import unittest
 
-from labctl.pve import build_pve_config, build_pve_plan, ct_fields, load_pve_config, shell_settings
+from labctl.config import parse_env
+from labctl.pve import (
+    ACCESS_SETTINGS,
+    DEFAULTS,
+    build_pve_config,
+    build_pve_plan,
+    ct_fields,
+    load_pve_config,
+    shell_settings,
+)
 from tests.helpers import REPO, SECRET_HEX, scratch_dir
+
+EXAMPLE = REPO / "deploy" / "pve" / "shell-lab.env.example"
 
 REQUIRED = {"PORTFORWARD_SOURCES": "198.51.100.0/24"}
 
@@ -87,6 +98,24 @@ class PveSettingsTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             load_pve_config(write_pve_env(mode=0o644, LAB_SECRET=SECRET_HEX))
         self.assertEqual(load_pve_config(write_pve_env(LAB_SECRET=SECRET_HEX)).lab_secret, bytes.fromhex(SECRET_HEX))
+
+
+class PveExampleTest(unittest.TestCase):
+    def test_example_lists_every_setting_once_in_order(self):
+        # 範例檔列出所有設定，順序和程式裡的一樣，讀者才找得到每個值。
+        keys = list(parse_env(EXAMPLE.read_text(encoding="utf-8")))
+        self.assertEqual(keys, [*DEFAULTS, *ACCESS_SETTINGS["portforward"]])
+
+    def test_example_values_are_the_defaults(self):
+        # 範例檔寫的值就是程式的預設值，例外是語系和時區（範例給常用值）。
+        values = parse_env(EXAMPLE.read_text(encoding="utf-8"))
+        defaults = {**DEFAULTS, **ACCESS_SETTINGS["portforward"]}
+        differ = {k for k, v in values.items() if v != (defaults[k] or "")}
+        self.assertEqual(differ, {"GUEST_LOCALE", "GUEST_TIMEZONE"})
+
+    def test_example_loads_once_the_sources_are_filled_in(self):
+        values = parse_env(EXAMPLE.read_text(encoding="utf-8"))
+        self.assertEqual(build_pve_config({**values, **REQUIRED}).student_count, 20)
 
 
 class PvePlanTest(unittest.TestCase):

@@ -24,7 +24,7 @@ export TF_VAR_management_url := https://$(NETBIRD_DOMAIN)
 export TF_VAR_setup_key_days := $(SETUP_KEY_DAYS)
 
 .PHONY: help env check netbird class-start class-stop keys renew-keys host vms enroll labs passwords cards status \
-	reset-lab teardown pve-check pve-upload pve-dry-run pve pve-stop pve-start pve-destroy test lint fmt
+	reset-lab teardown pve-env pve-check pve-upload pve-dry-run pve pve-stop pve-start pve-destroy test lint fmt
 
 help: ## 列出所有指令
 	@grep -E '^[a-z-]+:.*## ' $(firstword $(MAKEFILE_LIST)) | awk -F':.*## ' '{printf "  make %-12s %s\n", $$1, $$2}'
@@ -108,20 +108,30 @@ PVE_ENV ?= deploy/pve/shell-lab.env
 PVE_DIR ?= /opt/shell-lab/pve
 pve_get = $(shell sed -n 's/^$(1)=//p' $(PVE_ENV) 2>/dev/null)
 PVE_SSH := $(call pve_get,PVE_SSH)
-PVE_CRED := $(or $(call pve_get,CRED_FILE),shell-lab-credentials.txt)
-PVE_CRED_REMOTE := $(if $(filter /%,$(PVE_CRED)),$(PVE_CRED),$(PVE_DIR)/$(PVE_CRED))
+LABCTL_PVE := $(PYTHON) -m labctl --env $(PVE_ENV)
+PVE_CRED_REMOTE := $(PVE_DIR)/deploy/pve/shell-lab-credentials.txt
 PVE_ROOT := s=; [ \$$(id -u) = 0 ] || s=sudo; \$$s
-PVE_SETUP := $(PVE_ROOT) $(PVE_DIR)/shell-lab-setup.sh
+PVE_SETUP := $(PVE_ROOT) $(PVE_DIR)/deploy/pve/shell-lab-setup.sh
 PVE_LOCAL_CRED := local/pve-credentials.txt
 
+pve-env: ## PVE LXC 版：從範例建立 deploy/pve/shell-lab.env，LAB_SECRET 自動產生
+	@if [ -e $(PVE_ENV) ]; then echo "$(PVE_ENV) already exists, not touched"; exit 0; fi; \
+	umask 077; \
+	secret=$$($(PYTHON) -c 'import secrets; print(secrets.token_hex(32))'); \
+	sed "s/^LAB_SECRET=$$/LAB_SECRET=$$secret/" deploy/pve/shell-lab.env.example >$(PVE_ENV); \
+	echo "created $(PVE_ENV), fill it in and run: make pve-dry-run"
+
 pve-check:
-	@[ -f $(PVE_ENV) ] || { echo "$(PVE_ENV) not found: cp deploy/pve/shell-lab.env.example $(PVE_ENV)" >&2; exit 1; }
+	@[ -f $(PVE_ENV) ] || { echo "$(PVE_ENV) not found, create it with: make pve-env" >&2; exit 1; }
 	@[ -n "$(PVE_SSH)" ] || { echo "set PVE_SSH in $(PVE_ENV)" >&2; exit 1; }
 	@mkdir -p -m 700 local
+	@$(LABCTL_PVE) pve check
 
+# 送 labctl 和腳本，保持 repo 的目錄結構。主機上的設定檔和連線資訊檔在 deploy/pve，不會被覆蓋。
 pve-upload: pve-check
-	tar -cz -C deploy/pve shell-lab-setup.sh | ssh $(PVE_SSH) "$(PVE_ROOT) sh -c 'mkdir -p -m 700 $(PVE_DIR) && tar -xz --no-same-owner -C $(PVE_DIR)'"
-	ssh $(PVE_SSH) "$(PVE_ROOT) sh -c 'umask 077 && cat >$(PVE_DIR)/shell-lab.env'" <$(PVE_ENV)
+	tar -cz --exclude=__pycache__ labctl deploy/pve/shell-lab-setup.sh | ssh $(PVE_SSH) \
+		"$(PVE_ROOT) sh -c 'mkdir -p -m 700 $(PVE_DIR) && rm -rf $(PVE_DIR)/labctl && tar -xz --no-same-owner -C $(PVE_DIR)'"
+	ssh $(PVE_SSH) "$(PVE_ROOT) sh -c 'umask 077 && cat >$(PVE_DIR)/deploy/pve/shell-lab.env'" <$(PVE_ENV)
 
 pve-dry-run: pve-upload ## PVE LXC 版：預覽會做的事，不做任何變更
 	ssh $(PVE_SSH) "$(PVE_SETUP) --dry-run"
