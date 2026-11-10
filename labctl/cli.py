@@ -13,6 +13,7 @@ from labctl.config import host_env_text, load_config, select_students
 from labctl.firewall import default_gateways, render_gateway_sync, render_ruleset
 from labctl.labs import DEFAULT_FLAG_PREFIX, LABS, build_labs, full_flag
 from labctl.plan import build_plan, vm_fields
+from labctl.pve import build_pve_plan, ct_fields, load_pve_config, shell_settings
 
 # 這兩個值印出來就外洩了，config get 不給看。
 SECRET_FIELDS = {"netbird_pat", "lab_secret"}
@@ -149,6 +150,28 @@ def cmd_netbird_check(args):
     print("OK: no enabled policy uses the All group")
 
 
+def cmd_pve_check(args):
+    config = load_pve_config(args.env)
+    print(f"{args.env} OK: {config.student_count} containers, access mode {config.access_mode}")
+
+
+def cmd_pve_settings(args):
+    sys.stdout.write(shell_settings(load_pve_config(args.env)))
+
+
+def cmd_pve_students(args):
+    print("\n".join(load_pve_config(args.env).students()))
+
+
+def cmd_pve_plan(args):
+    print(json.dumps(build_pve_plan(load_pve_config(args.env), args.students), ensure_ascii=False, indent=2))
+
+
+def cmd_pve_ct(args):
+    instance = build_pve_plan(load_pve_config(args.env), [args.student])["instances"][0]
+    print(" ".join(ct_fields(instance, args.fields)))
+
+
 def build_parser():
     parser = argparse.ArgumentParser(prog="labctl", description="Shell lab tooling")
     parser.add_argument("--env", default=".env", type=Path, help="settings file (default: .env)")
@@ -212,6 +235,17 @@ def build_parser():
     command(nb, "status", cmd_netbird_status, "every student's VM and computers, online or not")
     command(nb, "default-policy", cmd_netbird_default_policy, "print the ID of the default All policy")
     command(nb, "check", cmd_netbird_check, "fail if an enabled policy still uses the All group")
+
+    pve = group("pve", "PVE LXC deployment (--env deploy/pve/shell-lab.env)")
+    command(pve, "check", cmd_pve_check, "validate every setting")
+    command(pve, "settings", cmd_pve_settings, "print the settings as KEY=value lines, without LAB_SECRET")
+    command(pve, "students", cmd_pve_students, "print every student id")
+    command(pve, "plan", cmd_pve_plan, "print the container plan as JSON").add_argument(
+        "--students", nargs="+", help="limit to these students"
+    )
+    ct = command(pve, "ct", cmd_pve_ct, "print fields of one container, separated by spaces")
+    ct.add_argument("student")
+    ct.add_argument("fields", nargs="+")
     return parser
 
 
