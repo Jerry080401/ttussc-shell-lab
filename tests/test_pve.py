@@ -11,6 +11,7 @@ from labctl.pve import (
     build_pve_plan,
     ct_fields,
     load_pve_config,
+    render_access,
     shell_settings,
 )
 from tests.helpers import REPO, SECRET_HEX, scratch_dir
@@ -145,6 +146,23 @@ class PvePlanTest(unittest.TestCase):
         self.assertIn("PORTFORWARD_SOURCES=198.51.100.0/24\n", text)
         for line in text.splitlines():
             self.assertRegex(line, r"^[A-Z_]+=[A-Za-z0-9._/,:@+-]*$")
+
+
+class PortForwardRulesTest(unittest.TestCase):
+    def test_one_rule_and_one_map_entry_per_student(self):
+        text = render_access(config(STUDENT_COUNT="40", PORTFORWARD_SOURCES="198.51.100.0/24,203.0.113.7"))
+        self.assertEqual(text.count("dnat ip to tcp dport map @ssh_ports"), 1)
+        self.assertIn("22001 : 10.10.10.2 . 22, 22002 : 10.10.10.3 . 22", text)
+        self.assertIn("22040 : 10.10.10.41 . 22 }", text)
+        self.assertIn("elements = { 198.51.100.0/24, 203.0.113.7/32 }", text)
+        self.assertIn('iifname "vmbr0" ip saddr @sources', text)
+
+    def test_rules_replace_their_own_table_atomically(self):
+        # 先建立再刪除，第一次載入時 table 不存在也不會出錯；只動自己的 table。
+        lines = render_access(config()).splitlines()
+        self.assertEqual(lines[2:4], ["table ip shell_lab_access", "delete table ip shell_lab_access"])
+        tables = [line for line in lines if line.startswith(("table", "delete"))]
+        self.assertTrue(all("ip shell_lab_access" in line for line in tables), tables)
 
 
 class PveCommandTest(unittest.TestCase):

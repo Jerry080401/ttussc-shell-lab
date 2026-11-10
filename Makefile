@@ -160,7 +160,7 @@ test: ## 跑測試
 lint: ## 檢查程式格式
 	ruff check .
 	ruff format --check .
-	shellcheck -x host/*.sh host/gateway-sync tests/netlab.sh deploy/pve/*.sh deploy/pve/access/*.sh
+	shellcheck -x host/*.sh host/gateway-sync tests/netlab.sh tests/pve_netlab.sh deploy/pve/*.sh deploy/pve/access/*.sh
 	terraform -chdir=netbird/terraform fmt -check -recursive
 
 fmt: ## 自動整理程式格式

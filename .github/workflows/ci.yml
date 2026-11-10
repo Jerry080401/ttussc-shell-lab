@@ -24,13 +24,13 @@ jobs:
         run: |
           sudo apt-get update -q
           sudo apt-get install -y -q nftables
-          sudo "$(command -v python)" -m unittest -v tests.test_firewall_netns tests.test_host_scripts
+          sudo "$(command -v python)" -m unittest -v tests.test_firewall_netns tests.test_pve_netns tests.test_host_scripts
 
   shell:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - run: shellcheck -x host/*.sh host/gateway-sync tests/netlab.sh deploy/pve/*.sh deploy/pve/access/*.sh
+      - run: shellcheck -x host/*.sh host/gateway-sync tests/netlab.sh tests/pve_netlab.sh deploy/pve/*.sh deploy/pve/access/*.sh
 
   terraform:
     runs-on: ubuntu-24.04

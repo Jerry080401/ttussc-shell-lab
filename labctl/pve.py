@@ -268,6 +268,46 @@ def build_pve_plan(config, selected=None):
     }
 
 
+ACCESS_TABLE = "ip shell_lab_access"
+
+
+def render_access(config):
+    """Return an nft script that atomically replaces the access mode's table."""
+    if config.access_mode == "portforward":
+        return _render_portforward(config)
+    raise AssertionError(config.access_mode)
+
+
+def _render_portforward(config):
+    # 一條規則查 map：目的埠 → 容器位址 . 22。人數只影響 map 的內容，不影響規則數量。
+    access = config.access
+    ports = ", ".join(f"{i['access']['port']} : {i['address']} . 22" for i in build_pve_plan(config)["instances"])
+    return (
+        "#!/usr/sbin/nft -f\n"
+        "# Managed by labctl (labctl pve render-access). Regenerate instead of editing.\n"
+        f"table {ACCESS_TABLE}\n"
+        f"delete table {ACCESS_TABLE}\n"
+        "\n"
+        f"table {ACCESS_TABLE} {{\n"
+        "\tset sources {\n"
+        "\t\ttype ipv4_addr\n"
+        "\t\tflags interval\n"
+        f"\t\telements = {{ {', '.join(access['sources'])} }}\n"
+        "\t}\n"
+        "\n"
+        "\tmap ssh_ports {\n"
+        "\t\ttype inet_service : ipv4_addr . inet_service\n"
+        f"\t\telements = {{ {ports} }}\n"
+        "\t}\n"
+        "\n"
+        "\tchain prerouting {\n"
+        "\t\ttype nat hook prerouting priority dstnat; policy accept;\n"
+        f'\t\tiifname "{access["iface"]}" ip saddr @sources dnat ip to tcp dport map @ssh_ports\n'
+        "\t}\n"
+        "}\n"
+    )
+
+
 CT_FIELDS = ("ctid", "hostname", "address", "prefix", "gateway", "port")
 
 

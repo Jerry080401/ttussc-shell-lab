@@ -13,7 +13,7 @@ from labctl.config import host_env_text, load_config, select_students
 from labctl.firewall import default_gateways, render_gateway_sync, render_ruleset
 from labctl.labs import DEFAULT_FLAG_PREFIX, LABS, build_labs, full_flag
 from labctl.plan import build_plan, vm_fields
-from labctl.pve import build_pve_plan, ct_fields, load_pve_config, shell_settings
+from labctl.pve import build_pve_plan, ct_fields, load_pve_config, render_access, shell_settings
 
 # 這兩個值印出來就外洩了，config get 不給看。
 SECRET_FIELDS = {"netbird_pat", "lab_secret"}
@@ -172,6 +172,10 @@ def cmd_pve_ct(args):
     print(" ".join(ct_fields(instance, args.fields)))
 
 
+def cmd_pve_render_access(args):
+    sys.stdout.write(render_access(load_pve_config(args.env)))
+
+
 def build_parser():
     parser = argparse.ArgumentParser(prog="labctl", description="Shell lab tooling")
     parser.add_argument("--env", default=".env", type=Path, help="settings file (default: .env)")
@@ -246,6 +250,7 @@ def build_parser():
     ct = command(pve, "ct", cmd_pve_ct, "print fields of one container, separated by spaces")
     ct.add_argument("student")
     ct.add_argument("fields", nargs="+")
+    command(pve, "render-access", cmd_pve_render_access, "nftables rules of the access mode")
     return parser
 
 
