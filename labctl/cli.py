@@ -13,7 +13,14 @@ from labctl.config import host_env_text, load_config, select_students
 from labctl.firewall import default_gateways, render_gateway_sync, render_ruleset
 from labctl.labs import DEFAULT_FLAG_PREFIX, LABS, build_labs, full_flag
 from labctl.plan import build_plan, vm_fields
-from labctl.pve import build_pve_plan, ct_fields, load_pve_config, render_access, shell_settings
+from labctl.pve import (
+    build_pve_plan,
+    ct_fields,
+    load_pve_config,
+    render_access,
+    render_guest_setup,
+    shell_settings,
+)
 
 # 這兩個值印出來就外洩了，config get 不給看。
 SECRET_FIELDS = {"netbird_pat", "lab_secret"}
@@ -176,6 +183,10 @@ def cmd_pve_render_access(args):
     sys.stdout.write(render_access(load_pve_config(args.env)))
 
 
+def cmd_pve_render_guest_setup(args):
+    sys.stdout.write(render_guest_setup(load_pve_config(args.env)))
+
+
 def cmd_pve_passwords_new(args):
     added = passwords.ensure(args.file, load_pve_config(args.env).students())
     print(f"{args.file}: added {added} passwords")
@@ -260,6 +271,7 @@ def build_parser():
     ct.add_argument("student")
     ct.add_argument("fields", nargs="+")
     command(pve, "render-access", cmd_pve_render_access, "nftables rules of the access mode")
+    command(pve, "render-guest-setup", cmd_pve_render_guest_setup, "bash script that sets up one container")
     for name, func, help_text in (
         ("passwords-new", cmd_pve_passwords_new, "create a password for every student who has none"),
         ("passwords-export", cmd_pve_passwords_export, "print `sid password` lines for shell-lab-setup.sh"),

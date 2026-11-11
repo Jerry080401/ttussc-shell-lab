@@ -167,20 +167,17 @@ create_args() {
     printf '%s\0' "${args[@]}"
 }
 
-# 容器內的設定。每一步都檢查結果：這個函式在 || 裡呼叫，set -e 不會生效。
+# 容器內的設定：labctl pve render-guest-setup 產生的腳本，經 stdin 交給容器裡的 bash。
+# 這個函式在 || 裡呼叫，set -e 不會生效，所以每一步都檢查結果。
 provision() {
-    local groups=()
+    local setup
     # shellcheck disable=SC2016 # 這段在容器裡展開
     pct exec "$CTID" -- sh -c 'i=0; until getent hosts archive.ubuntu.com >/dev/null; do
         i=$((i + 1)); [ "$i" -lt 30 ] || exit 1; sleep 2; done' ||
         { err "CT $CTID 連不上網路，請檢查 $NAT_BRIDGE、MASQUERADE 和 FORWARD 規則"; return 1; }
-    pct exec "$CTID" -- env DEBIAN_FRONTEND=noninteractive \
-        sh -c 'apt-get update -q && apt-get install -y -q openssh-server sudo' >/dev/null || return 1
-    pct exec "$CTID" -- sh -c 'printf "PasswordAuthentication yes\n" >/etc/ssh/sshd_config.d/00-shell-lab.conf' || return 1
-    ! $STUDENT_SUDO || groups=(-G sudo)
-    # 先不設密碼（帳號鎖住），之後由 --passwords 設定。
-    pct exec "$CTID" -- useradd -m -s /bin/bash "${groups[@]}" student || return 1
-    pct exec "$CTID" -- sh -c 'systemctl enable ssh >/dev/null 2>&1; systemctl restart ssh' || return 1
+    setup=$(labctl pve render-guest-setup) || return 1
+    printf '%s\n' "$setup" | pct exec "$CTID" -- bash -s >/dev/null ||
+        { err "CT $CTID 容器內的設定失敗（套件、sshd 或帳號）"; return 1; }
 }
 
 create_containers() {
@@ -198,8 +195,8 @@ create_containers() {
         mapfile -d '' -t args < <(create_args)
         run pct create "$CTID" "${args[@]}"
         if $DRY_RUN; then
-            printf '    %s[dry-run]%s 容器內：安裝 openssh-server、開啟密碼登入、建立 student%s\n' \
-                "$C_DIM" "$C_RESET" "$($STUDENT_SUDO && echo '（sudo 群組）')"
+            printf '    %s[dry-run]%s 容器內：執行 labctl pve render-guest-setup（套件、sshd、語系、帳號 student%s）\n' \
+                "$C_DIM" "$C_RESET" "$($STUDENT_SUDO && echo '，sudo 群組')"
             continue
         fi
         if ! provision; then

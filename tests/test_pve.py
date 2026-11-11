@@ -12,6 +12,7 @@ from labctl.pve import (
     ct_fields,
     load_pve_config,
     render_access,
+    render_guest_setup,
     shell_settings,
 )
 from tests.helpers import REPO, SECRET_HEX, scratch_dir
@@ -163,6 +164,45 @@ class PortForwardRulesTest(unittest.TestCase):
         self.assertEqual(lines[2:4], ["table ip shell_lab_access", "delete table ip shell_lab_access"])
         tables = [line for line in lines if line.startswith(("table", "delete"))]
         self.assertTrue(all("ip shell_lab_access" in line for line in tables), tables)
+
+
+class GuestSetupTest(unittest.TestCase):
+    def test_installs_what_the_labs_use(self):
+        text = render_guest_setup(config())
+        install = next(line for line in text.splitlines() if line.startswith("apt-get install"))
+        for package in ("openssh-server", "python3", "man-db", "less", "file", "git", "vim", "nano"):
+            self.assertIn(f" {package}", install)
+        self.assertNotIn(" sudo", install)
+        self.assertNotIn("language-pack-zh-hant", install)
+
+    def test_same_sshd_and_rm_guard_as_the_vms(self):
+        text = render_guest_setup(config())
+        self.assertIn("AllowUsers student", text)
+        self.assertIn("DisableForwarding yes", text)
+        self.assertIn("/etc/profile.d/shell-lab-rm.sh", text)
+        self.assertIn("第 05 題", text)
+
+    def test_sudo_and_chinese_follow_the_settings(self):
+        plain = render_guest_setup(config())
+        self.assertIn("gpasswd -d student sudo", plain)
+        rich = render_guest_setup(config(STUDENT_SUDO="true", GUEST_LOCALE="zh_TW.UTF-8"))
+        self.assertIn("usermod -aG sudo student", rich)
+        self.assertIn("language-pack-zh-hant", rich)
+        self.assertIn("locale-gen zh_TW.UTF-8", rich)
+
+    def test_ubuntu_26_04_switches_back_to_gnu_coreutils(self):
+        text = render_guest_setup(
+            config(GUEST_OS="ubuntu-26.04", GUEST_TEMPLATE="ubuntu-26.04-standard_26.04-1_amd64.tar.zst")
+        )
+        self.assertIn("coreutils-from-gnu coreutils-from-uutils-", text)
+        self.assertNotIn("coreutils-from-gnu", render_guest_setup(config()))
+
+    def test_no_secret_in_the_script(self):
+        self.assertNotIn(SECRET_HEX, render_guest_setup(config(LAB_SECRET=SECRET_HEX)))
+
+    def test_script_is_valid_bash(self):
+        result = subprocess.run(["bash", "-n"], input=render_guest_setup(config()), capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
 
 
 class PveCommandTest(unittest.TestCase):
