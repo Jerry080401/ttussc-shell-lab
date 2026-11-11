@@ -277,22 +277,25 @@ ISOLATION_TABLE = "inet shell_lab_pve"
 L2_TABLE = "bridge shell_lab_l2"
 
 
-def render_network(config):
+def render_network(config, dns_servers=()):
     """Return the nft script of the container network: NAT, then L3 isolation, then L2 isolation.
 
+    `dns_servers` are the containers' name servers, reachable on port 53 whatever network they are in.
     `nft -f` applies the whole file as one transaction.
     """
-    return render_nat(config) + "\n" + render_isolation(config) + "\n" + render_l2(config)
+    return render_nat(config) + "\n" + render_isolation(config, dns_servers) + "\n" + render_l2(config)
 
 
-def render_isolation(config):
+def render_isolation(config, dns_servers=()):
     """The lab VMs' isolation rules on the NAT bridge, plus port-forwarded SSH coming in.
 
     Containers reach the internet only via the host's default gateway, never the host itself, private
     ranges, PROTECTED_NETWORKS or on-link LAN hosts. The gateway set is filled by render_gateway_sync.
     """
     protected = [str(n) for n in config.protected_networks]
-    return render_ruleset(protected, table=ISOLATION_TABLE, interfaces=config.nat_bridge, ssh_in=True)
+    return render_ruleset(
+        protected, table=ISOLATION_TABLE, interfaces=config.nat_bridge, ssh_in=True, dns_servers=dns_servers
+    )
 
 
 def render_gateway_sync_pve(gateways):

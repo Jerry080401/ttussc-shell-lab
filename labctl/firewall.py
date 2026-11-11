@@ -43,7 +43,7 @@ def _v4_set(networks):
     return ", ".join(str(n) for n in collapsed)
 
 
-def render_ruleset(protected_networks, table=TABLE, interfaces=f"{BRIDGE_PREFIX}*", ssh_in=False):
+def render_ruleset(protected_networks, table=TABLE, interfaces=f"{BRIDGE_PREFIX}*", ssh_in=False, dns_servers=()):
     """Return an nft script that atomically replaces `table`.
 
     On the lab host the rules match every interface named tl*, not the bridges of today's class
@@ -54,6 +54,13 @@ def render_ruleset(protected_networks, table=TABLE, interfaces=f"{BRIDGE_PREFIX}
     # 轉發進來的 SSH：去程只放行 22 埠，回程（使用者可能在私有或同一個網段）不受下面的目的地限制。
     replies = f"\t\tiifname {lab} ct status dnat accept\n" if ssh_in else ""
     inbound = f"\t\toifname {lab} ct status dnat tcp dport 22 accept\n" if ssh_in else ""
+    # 主機上沒有給客體用的 DNS 時（PVE 版），只放行指定的 DNS 伺服器的 53 埠，其他目的地照樣限制。
+    dns = ""
+    if dns_servers:
+        servers = ", ".join(str(ipaddress.IPv4Address(s)) for s in dns_servers)
+        dns = "".join(
+            f"\t\tiifname {lab} ip daddr {{ {servers} }} {proto} dport 53 accept\n" for proto in ("udp", "tcp")
+        )
     return (
         "#!/usr/sbin/nft -f\n"
         "# Managed by labctl. Regenerate instead of editing.\n"
@@ -85,6 +92,7 @@ def render_ruleset(protected_networks, table=TABLE, interfaces=f"{BRIDGE_PREFIX}
         f"\t\tiifname {lab} meta nfproto ipv6 drop\n"
         f"\t\toifname {lab} meta nfproto ipv6 drop\n"
         f"{replies}"
+        f"{dns}"
         f"\t\tiifname {lab} ip daddr @blocked_v4 drop\n"
         f"\t\tiifname {lab} ip daddr @uplink_gateways drop\n"
         f"\t\tiifname {lab} rt ip nexthop != @uplink_gateways drop\n"

@@ -15,7 +15,8 @@
 # 位址配置：
 #   ct1 10.10.10.2、ct2 10.10.10.3 —(vmbr1 10.10.10.1/24)— host —(vmbr0 192.0.2.1/24)—
 #     client 192.0.2.10、stranger 192.0.2.20、閘道 192.0.2.254（後面有 203.0.113.10「網際網路」、
-#     10.99.0.10 私有網段、198.51.100.10 受保護網段）
+#     10.99.0.10 私有網段、10.99.0.53 私有網段裡的 DNS 伺服器、198.51.100.10 受保護網段）
+# NETWORK 把 10.99.0.53 當成容器的 DNS 伺服器。
 # 每個服務連上就回傳自己的名字，連不上是 blocked。
 set -eu
 
@@ -74,7 +75,7 @@ attach_lan() {  # pid host-side-veth address
 attach_lan "$CLIENT" client0 192.0.2.10
 attach_lan "$STRANGER" strange0 192.0.2.20
 attach_lan "$GW" gw0 192.0.2.254
-for address in 203.0.113.10 10.99.0.10 198.51.100.10; do at "$GW" ip addr add "$address/32" dev lo; done
+for address in 203.0.113.10 10.99.0.10 10.99.0.53 198.51.100.10; do at "$GW" ip addr add "$address/32" dev lo; done
 
 # 服務：連上就回傳名字。直接用 nsenter 啟動，$! 才是 python 本身，結束時殺得到。
 serve() {  # pid port name（pid 為 - 表示主機自己）
@@ -93,6 +94,7 @@ serve - 22 host_ssh
 serve - 8006 host_webui
 serve "$CLIENT" 7000 lan_host
 serve "$GW" 80 net
+serve "$GW" 53 dns
 sleep 0.5
 
 connect() {  # name pid address port [source]
@@ -131,6 +133,9 @@ connect ct1_lan_host "$CT1" 192.0.2.10 7000
 connect ct1_gateway "$CT1" 192.0.2.254 80
 connect ct1_private "$CT1" 10.99.0.10 80
 connect ct1_protected "$CT1" 198.51.100.10 80
+connect ct1_dns "$CT1" 10.99.0.53 53
+connect ct1_private_port_53 "$CT1" 10.99.0.10 53
+connect ct1_dns_other_port "$CT1" 10.99.0.53 80
 
 # 冒用不是自己的位址。
 at "$CT2" ip addr add 10.10.10.9/24 dev eth0

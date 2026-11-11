@@ -186,7 +186,8 @@ def cmd_pve_render_access(args):
 
 
 def cmd_pve_render_network(args):
-    sys.stdout.write(render_network(load_pve_config(args.env)))
+    dns = [d for d in args.dns.split(",") if d] if args.dns else []
+    sys.stdout.write(render_network(load_pve_config(args.env), dns))
 
 
 def cmd_pve_render_gateway_sync(args):
@@ -301,7 +302,9 @@ def build_parser():
     ct = command(pve, "ct", cmd_pve_ct, "print fields of one container, separated by spaces")
     ct.add_argument("student")
     ct.add_argument("fields", nargs="+")
-    command(pve, "render-network", cmd_pve_render_network, "nftables rules of the container network")
+    command(pve, "render-network", cmd_pve_render_network, "nftables rules of the container network").add_argument(
+        "--dns", help="the containers' name servers, separated by commas"
+    )
     command(
         pve,
         "render-gateway-sync",

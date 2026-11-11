@@ -186,6 +186,22 @@ WantedBy=timers.target
 EOF
 }
 
+# 容器用的 DNS：CT_NAMESERVER，沒填就用主機 /etc/resolv.conf 裡的 IPv4 伺服器（不含 127.x）。
+# 隔離規則只對這幾台開 53 埠，所以容器一定要用它們，pct create 會明確指定。
+resolve_dns() {
+    if [ -n "$CT_NAMESERVER" ]; then
+        DNS_SERVERS=$CT_NAMESERVER
+    else
+        DNS_SERVERS=$(awk '$1 == "nameserver" && $2 ~ /^[0-9.]+$/ && $2 !~ /^127\./ {print $2}' /etc/resolv.conf 2>/dev/null |
+            paste -sd, -)
+    fi
+    if [ -z "$DNS_SERVERS" ]; then
+        soft_die "主機的 /etc/resolv.conf 沒有可用的 IPv4 DNS 伺服器，請在設定檔填 CT_NAMESERVER"
+        DNS_SERVERS=192.0.2.53
+    fi
+    ok "容器的 DNS：$DNS_SERVERS"
+}
+
 network_precheck() {
     command -v nft >/dev/null || soft_die "找不到 nft，請先安裝：apt install nftables"
     if ! grep -qE '^[[:space:]]*source[[:space:]]+/etc/network/interfaces\.d/\*' "$INTERFACES" 2>/dev/null; then
@@ -213,7 +229,7 @@ setup_network() {
         printf '    %s[dry-run]%s 寫入 %s 並 ifup %s：\n' "$C_DIM" "$C_RESET" "$BRIDGE_FILE" "$NAT_BRIDGE"
         bridge_config | sed 's/^/        /'
         printf '    %s[dry-run]%s 寫入 %s：\n' "$C_DIM" "$C_RESET" "$NETWORK_RULES"
-        labctl pve render-network | sed 's/^/        /'
+        labctl pve render-network --dns "$DNS_SERVERS" | sed 's/^/        /'
         printf '    %s[dry-run]%s 寫入並啟用 %s（打開 IP 轉送）和 %s.timer：\n' "$C_DIM" "$C_RESET" "$NETWORK_UNIT" "$SYNC_UNIT"
         printf '        %s\n' "$(sync_command)"
         return
@@ -221,7 +237,7 @@ setup_network() {
     install -d -m 0700 "$STATE_DIR"
     [ -f "$STATE_DIR/ip_forward.orig" ] || sysctl -n net.ipv4.ip_forward >"$STATE_DIR/ip_forward.orig"
 
-    labctl pve render-network >"$NETWORK_RULES.new"
+    labctl pve render-network --dns "$DNS_SERVERS" >"$NETWORK_RULES.new"
     nft -c -f "$NETWORK_RULES.new"
     mv "$NETWORK_RULES.new" "$NETWORK_RULES"
     write_if_changed "/etc/systemd/system/$NETWORK_UNIT" "$(network_unit)" || true
@@ -284,7 +300,7 @@ create_args() {
         --onboot 1
         --start 1
     )
-    [ -z "$CT_NAMESERVER" ] || args+=(--nameserver "$CT_NAMESERVER")
+    args+=(--nameserver "${DNS_SERVERS//,/ }")
     printf '%s\0' "${args[@]}"
 }
 
@@ -429,6 +445,7 @@ cmd_create() {
     step "前置檢查"
     precheck true
     network_precheck
+    resolve_dns
     access_prepare
     setup_network
     access_apply

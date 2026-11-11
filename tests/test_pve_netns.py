@@ -49,7 +49,7 @@ class ContainerNetworkInNetnsTest(unittest.TestCase):
         two, one = config(2), config(1)
         l2 = bridge_family_supported()
         files = [
-            write(render_nat(two) + render_isolation(two)),
+            write(render_nat(two) + render_isolation(two, ["10.99.0.53"])),
             write(render_l2(two)) if l2 else "-",
             write(render_access(two)),
             write(render_access(one)),
@@ -78,6 +78,9 @@ class ContainerNetworkInNetnsTest(unittest.TestCase):
             "ct1_gateway": "blocked",
             "ct1_private": "blocked",
             "ct1_protected": "blocked",
+            "ct1_dns": "dns",
+            "ct1_private_port_53": "blocked",
+            "ct1_dns_other_port": "blocked",
             "ct1_internet_no_gateway": "blocked",
             "client_22001_no_gateway": "ct1",
             "reload_client_22001": "ct1",

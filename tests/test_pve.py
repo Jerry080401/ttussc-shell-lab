@@ -174,6 +174,14 @@ class NetworkRulesTest(unittest.TestCase):
         self.assertIn('iifname "vmbr1" ct status dnat accept', text)
         self.assertNotIn('"tl*"', text)
 
+    def test_only_the_given_dns_servers_get_port_53(self):
+        self.assertNotIn("dport 53 accept", render_network(config()).split("chain forward", 1)[1])
+        text = render_network(config(), ["10.0.0.53", "192.0.2.53"])
+        self.assertIn('iifname "vmbr1" ip daddr { 10.0.0.53, 192.0.2.53 } udp dport 53 accept', text)
+        self.assertIn('iifname "vmbr1" ip daddr { 10.0.0.53, 192.0.2.53 } tcp dport 53 accept', text)
+        with self.assertRaises(ValueError):
+            render_network(config(), ["dns.example.com"])
+
     def test_each_container_port_is_tied_to_its_address(self):
         text = render_network(config(STUDENT_COUNT="2"))
         self.assertIn('elements = { "veth201i0" . 10.10.10.2, "veth202i0" . 10.10.10.3 }', text)
