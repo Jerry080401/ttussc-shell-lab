@@ -19,6 +19,7 @@ from labctl.pve import (
     load_pve_config,
     render_access,
     render_guest_setup,
+    render_network,
     shell_settings,
 )
 
@@ -183,6 +184,10 @@ def cmd_pve_render_access(args):
     sys.stdout.write(render_access(load_pve_config(args.env)))
 
 
+def cmd_pve_render_network(args):
+    sys.stdout.write(render_network(load_pve_config(args.env)))
+
+
 def cmd_pve_render_guest_setup(args):
     sys.stdout.write(render_guest_setup(load_pve_config(args.env)))
 
@@ -270,6 +275,7 @@ def build_parser():
     ct = command(pve, "ct", cmd_pve_ct, "print fields of one container, separated by spaces")
     ct.add_argument("student")
     ct.add_argument("fields", nargs="+")
+    command(pve, "render-network", cmd_pve_render_network, "nftables rules of the container network")
     command(pve, "render-access", cmd_pve_render_access, "nftables rules of the access mode")
     command(pve, "render-guest-setup", cmd_pve_render_guest_setup, "bash script that sets up one container")
     for name, func, help_text in (

@@ -13,6 +13,7 @@ from labctl.pve import (
     load_pve_config,
     render_access,
     render_guest_setup,
+    render_network,
     shell_settings,
 )
 from tests.helpers import REPO, SECRET_HEX, scratch_dir
@@ -147,6 +148,14 @@ class PvePlanTest(unittest.TestCase):
         self.assertIn("PORTFORWARD_SOURCES=198.51.100.0/24\n", text)
         for line in text.splitlines():
             self.assertRegex(line, r"^[A-Z_]+=[A-Za-z0-9._/,:@+-]*$")
+
+
+class NetworkRulesTest(unittest.TestCase):
+    def test_masquerade_the_subnet_leaving_any_other_interface(self):
+        text = render_network(config(NAT_BRIDGE="vmbr7", NAT_SUBNET="10.20.0.0/24"))
+        self.assertIn('ip saddr 10.20.0.0/24 oifname != "vmbr7" masquerade', text)
+        tables = [line for line in text.splitlines() if line.startswith(("table", "delete"))]
+        self.assertTrue(all("ip shell_lab_nat" in line for line in tables), tables)
 
 
 class PortForwardRulesTest(unittest.TestCase):

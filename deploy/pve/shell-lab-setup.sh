@@ -8,7 +8,7 @@
 #   --passwords   設定密碼：stdin 每行「學生ID 密碼」（labctl pve passwords-export 的輸出）
 #   --stop        關閉所有容器（保留）
 #   --start       啟動所有容器
-#   --destroy     刪除所有容器和連線方式（需要確認）
+#   --destroy     刪除所有容器、連線方式和容器網路，主機恢復原狀（需要確認）
 #
 # 設定：同目錄的 shell-lab.env（從 shell-lab.env.example 複製），由 labctl 檢查並補上預設值。
 # 也可以用 ENV_FILE=路徑 指定別的設定檔。labctl 在這支腳本往上兩層的目錄（repo 根目錄）。
@@ -19,7 +19,10 @@ repo=$(readlink -f "$here/../..")
 ENV_FILE=${ENV_FILE:-$here/shell-lab.env}
 
 INTERFACES=/etc/network/interfaces
-BRIDGE_MARKER="# shell-lab NAT bridge (managed by shell-lab-setup.sh)"
+BRIDGE_FILE=/etc/network/interfaces.d/shell-lab
+STATE_DIR=/etc/shell-lab
+NETWORK_RULES=$STATE_DIR/pve-network.nft
+NETWORK_UNIT=shell-lab-pve-network.service
 DRY_RUN=false
 
 # ---- 輸出 ----
@@ -110,40 +113,108 @@ precheck() {
     fi
 }
 
-# ---- NAT 橋接 ----
-bridge_stanza() {
+# ---- 容器網路 ----
+# 橋接寫成 interfaces.d 裡的獨立檔案；MASQUERADE 和 IP 轉送由 systemd 服務在容器啟動前設定。
+# 第一次部署時記下原本的 ip_forward，--destroy 時設回去，主機恢復原狀。
+bridge_config() {
     cat <<EOF
-$BRIDGE_MARKER
+# 由 shell-lab-setup.sh 產生：shell-lab 容器用的 NAT 橋接。--destroy 會刪掉這個檔案。
 auto $NAT_BRIDGE
 iface $NAT_BRIDGE inet static
 	address $NAT_GATEWAY/${NAT_SUBNET#*/}
 	bridge-ports none
 	bridge-stp off
 	bridge-fd 0
-	post-up   echo 1 > /proc/sys/net/ipv4/ip_forward
-	post-up   iptables -t nat -A POSTROUTING -s $NAT_SUBNET ! -o $NAT_BRIDGE -j MASQUERADE
-	post-down iptables -t nat -D POSTROUTING -s $NAT_SUBNET ! -o $NAT_BRIDGE -j MASQUERADE
 EOF
 }
 
-setup_bridge() {
-    step "NAT 橋接 $NAT_BRIDGE（$NAT_GATEWAY，$NAT_SUBNET MASQUERADE）"
-    if [ -f "$INTERFACES" ] && grep -qE "^iface[[:space:]]+$NAT_BRIDGE([[:space:]]|\$)" "$INTERFACES"; then
-        if grep -qxF "$BRIDGE_MARKER" "$INTERFACES"; then
-            ok "$INTERFACES 已有 $NAT_BRIDGE，略過（要改設定請先手動刪掉那一段）"
-        else
-            warn "$INTERFACES 已有不是本腳本建立的 $NAT_BRIDGE，沿用現有設定；請確認它是 $NAT_GATEWAY 且有做 MASQUERADE"
-        fi
+network_unit() {
+    cat <<EOF
+# 由 shell-lab-setup.sh 產生：shell-lab 容器網路的 nftables 規則和 IP 轉送。
+[Unit]
+Description=shell-lab container network
+Before=pve-guests.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/sbin/sysctl -q -w net.ipv4.ip_forward=1
+ExecStart=/usr/sbin/nft -f $NETWORK_RULES
+
+[Install]
+WantedBy=multi-user.target
+EOF
+}
+
+network_precheck() {
+    command -v nft >/dev/null || soft_die "找不到 nft，請先安裝：apt install nftables"
+    if ! grep -qE '^[[:space:]]*source[[:space:]]+/etc/network/interfaces\.d/\*' "$INTERFACES" 2>/dev/null; then
+        soft_die "$INTERFACES 沒有 source /etc/network/interfaces.d/*，請先加上這一行"
+    fi
+    # 同名的橋接只能是我們自己的檔案。
+    if grep -lsE "^iface[[:space:]]+$NAT_BRIDGE([[:space:]]|\$)" "$INTERFACES" /etc/network/interfaces.d/* |
+        grep -qvxF "$BRIDGE_FILE"; then
+        soft_die "已經有別的設定定義了 $NAT_BRIDGE，請在設定檔換一個 NAT_BRIDGE"
+    fi
+}
+
+write_if_changed() {  # 路徑 內容；內容不同才寫入，回傳 0 表示有改
+    local path=$1 content=$2
+    if [ -f "$path" ] && [ "$(cat "$path")" = "$content" ]; then
+        return 1
+    fi
+    printf '%s\n' "$content" >"$path.new"
+    mv "$path.new" "$path"
+}
+
+setup_network() {
+    step "容器網路：橋接 $NAT_BRIDGE（$NAT_GATEWAY），$NAT_SUBNET 經主機 MASQUERADE 上網"
+    if $DRY_RUN; then
+        printf '    %s[dry-run]%s 寫入 %s 並 ifup %s：\n' "$C_DIM" "$C_RESET" "$BRIDGE_FILE" "$NAT_BRIDGE"
+        bridge_config | sed 's/^/        /'
+        printf '    %s[dry-run]%s 寫入 %s：\n' "$C_DIM" "$C_RESET" "$NETWORK_RULES"
+        labctl pve render-network | sed 's/^/        /'
+        printf '    %s[dry-run]%s 寫入 /etc/systemd/system/%s 並啟用（打開 IP 轉送）\n' "$C_DIM" "$C_RESET" "$NETWORK_UNIT"
         return
     fi
-    if $DRY_RUN; then
-        printf '    %s[dry-run]%s 附加到 %s：\n' "$C_DIM" "$C_RESET" "$INTERFACES"
-        bridge_stanza | sed 's/^/        /'
-    else
-        printf '\n%s\n' "$(bridge_stanza)" >>"$INTERFACES"
-        ok "已寫入 $INTERFACES"
+    install -d -m 0700 "$STATE_DIR"
+    [ -f "$STATE_DIR/ip_forward.orig" ] || sysctl -n net.ipv4.ip_forward >"$STATE_DIR/ip_forward.orig"
+
+    labctl pve render-network >"$NETWORK_RULES.new"
+    nft -c -f "$NETWORK_RULES.new"
+    mv "$NETWORK_RULES.new" "$NETWORK_RULES"
+    write_if_changed "/etc/systemd/system/$NETWORK_UNIT" "$(network_unit)" || true
+    systemctl daemon-reload
+    systemctl enable "$NETWORK_UNIT" >/dev/null 2>&1
+    systemctl restart "$NETWORK_UNIT"
+    ok "nft table shell_lab_nat 已載入，IP 轉送已打開"
+
+    # 只啟用這座橋接，不重新套用整份網路設定。
+    if write_if_changed "$BRIDGE_FILE" "$(bridge_config)"; then
+        ifdown "$NAT_BRIDGE" >/dev/null 2>&1 || true
     fi
-    run ifreload -a
+    ifup "$NAT_BRIDGE"
+    ok "橋接 $NAT_BRIDGE 已啟用（$BRIDGE_FILE）"
+}
+
+remove_network() {
+    local orig=0
+    step "移除容器網路"
+    if systemctl -q is-enabled "$NETWORK_UNIT" 2>/dev/null; then
+        systemctl disable --now "$NETWORK_UNIT" >/dev/null 2>&1
+    fi
+    rm -f "/etc/systemd/system/$NETWORK_UNIT"
+    systemctl daemon-reload
+    nft delete table ip shell_lab_nat 2>/dev/null || true
+    if [ -f "$BRIDGE_FILE" ]; then
+        ifdown "$NAT_BRIDGE" >/dev/null 2>&1 || true
+        rm -f "$BRIDGE_FILE"
+    fi
+    [ -f "$STATE_DIR/ip_forward.orig" ] && orig=$(cat "$STATE_DIR/ip_forward.orig")
+    sysctl -q -w "net.ipv4.ip_forward=$orig"
+    rm -f "$NETWORK_RULES" "$STATE_DIR/ip_forward.orig"
+    rmdir "$STATE_DIR" 2>/dev/null || true
+    ok "已刪除橋接 $NAT_BRIDGE、nft table shell_lab_nat 和 $NETWORK_UNIT，ip_forward 設回 $orig"
 }
 
 # ---- 容器 ----
@@ -174,7 +245,7 @@ provision() {
     # shellcheck disable=SC2016 # 這段在容器裡展開
     pct exec "$CTID" -- sh -c 'i=0; until getent hosts archive.ubuntu.com >/dev/null; do
         i=$((i + 1)); [ "$i" -lt 30 ] || exit 1; sleep 2; done' ||
-        { err "CT $CTID 連不上網路，請檢查 $NAT_BRIDGE、MASQUERADE 和 FORWARD 規則"; return 1; }
+        { err "CT $CTID 連不上網路，請檢查 $NAT_BRIDGE 和 nft table shell_lab_nat"; return 1; }
     setup=$(labctl pve render-guest-setup) || return 1
     printf '%s\n' "$setup" | pct exec "$CTID" -- bash -s >/dev/null ||
         { err "CT $CTID 容器內的設定失敗（套件、sshd 或帳號）"; return 1; }
@@ -253,11 +324,9 @@ list_one() { printf '      CT %s  %s\n' "$CTID" "$CT_NAME"; }
 cmd_create() {
     step "前置檢查"
     precheck true
+    network_precheck
     access_prepare
-    setup_bridge
-    if ! $DRY_RUN; then
-        sysctl -q -w net.ipv4.ip_forward=1
-    fi
+    setup_network
     access_apply
     create_containers
     if $DRY_RUN; then
@@ -309,7 +378,7 @@ cmd_start() {
 cmd_destroy() {
     local answer
     precheck false
-    step "即將刪除下列容器（含硬碟）和連線方式 $ACCESS_MODE："
+    step "即將刪除下列容器（含硬碟）、連線方式 $ACCESS_MODE 和容器網路 $NAT_BRIDGE："
     each_owned list_one
     printf '%s輸入 yes 確認刪除：%s' "$C_YELLOW" "$C_RESET"
     read -r answer || true
@@ -317,7 +386,8 @@ cmd_destroy() {
     step "刪除容器"
     each_owned destroy_one
     access_remove
-    step "完成。NAT 橋接 $NAT_BRIDGE 保留在 $INTERFACES，不需要的話手動刪掉那一段後 ifreload -a"
+    remove_network
+    step "完成，主機已恢復原狀"
 }
 
 case ${1:-} in

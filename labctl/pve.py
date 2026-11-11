@@ -271,6 +271,30 @@ def build_pve_plan(config, selected=None):
     }
 
 
+NAT_TABLE = "ip shell_lab_nat"
+
+
+def render_network(config):
+    """Return an nft script that atomically replaces the NAT table of the container network.
+
+    Containers reach the internet through the host: their source address is rewritten on the way out of
+    any interface other than the NAT bridge.
+    """
+    return (
+        "#!/usr/sbin/nft -f\n"
+        "# Managed by labctl (labctl pve render-network). Regenerate instead of editing.\n"
+        f"table {NAT_TABLE}\n"
+        f"delete table {NAT_TABLE}\n"
+        "\n"
+        f"table {NAT_TABLE} {{\n"
+        "\tchain postrouting {\n"
+        "\t\ttype nat hook postrouting priority srcnat; policy accept;\n"
+        f'\t\tip saddr {config.nat_subnet} oifname != "{config.nat_bridge}" masquerade\n'
+        "\t}\n"
+        "}\n"
+    )
+
+
 ACCESS_TABLE = "ip shell_lab_access"
 
 
