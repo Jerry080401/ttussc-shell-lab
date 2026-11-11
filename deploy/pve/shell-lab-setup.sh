@@ -16,13 +16,15 @@ set -euo pipefail
 
 here=$(dirname "$(readlink -f "$0")")
 repo=$(readlink -f "$here/../..")
-ENV_FILE=${ENV_FILE:-$here/shell-lab.env}
+ENV_FILE=$(readlink -f "${ENV_FILE:-$here/shell-lab.env}")
 
 INTERFACES=/etc/network/interfaces
 BRIDGE_FILE=/etc/network/interfaces.d/shell-lab
 STATE_DIR=/etc/shell-lab
 NETWORK_RULES=$STATE_DIR/pve-network.nft
 NETWORK_UNIT=shell-lab-pve-network.service
+SYNC_UNIT=shell-lab-pve-gateway-sync
+NETWORK_TABLES="ip shell_lab_nat|inet shell_lab_pve|bridge shell_lab_l2"
 DRY_RUN=false
 
 # ---- 輸出 ----
@@ -114,7 +116,8 @@ precheck() {
 }
 
 # ---- 容器網路 ----
-# 橋接寫成 interfaces.d 裡的獨立檔案；MASQUERADE 和 IP 轉送由 systemd 服務在容器啟動前設定。
+# 橋接寫成 interfaces.d 裡的獨立檔案。nftables 規則（NAT、L3 隔離、L2 隔離）和 IP 轉送由 systemd 服務
+# 在容器啟動前載入；閘道同步每 30 秒把主機目前的預設閘道放進隔離規則，沒有閘道時容器斷網。
 # 第一次部署時記下原本的 ip_forward，--destroy 時設回去，主機恢復原狀。
 bridge_config() {
     cat <<EOF
@@ -140,9 +143,44 @@ Type=oneshot
 RemainAfterExit=yes
 ExecStart=/usr/sbin/sysctl -q -w net.ipv4.ip_forward=1
 ExecStart=/usr/sbin/nft -f $NETWORK_RULES
+ExecStartPost=-/usr/bin/systemctl start $SYNC_UNIT.service
 
 [Install]
 WantedBy=multi-user.target
+EOF
+}
+
+sync_command() {
+    printf '%s' "ip -j -4 route show default | PYTHONPATH=$repo python3 -m labctl --env $ENV_FILE pve render-gateway-sync | /usr/sbin/nft -f -"
+}
+
+sync_service() {
+    cat <<EOF
+# 由 shell-lab-setup.sh 產生：把容器能用的上游閘道同步成主機目前的預設閘道。
+[Unit]
+Description=Sync allowed uplink gateways for shell-lab containers
+Requires=$NETWORK_UNIT
+After=$NETWORK_UNIT
+
+[Service]
+Type=oneshot
+ExecStart=/bin/sh -c '$(sync_command)'
+EOF
+}
+
+sync_timer() {
+    cat <<EOF
+# 由 shell-lab-setup.sh 產生。
+[Unit]
+Description=Re-sync shell-lab container uplink gateways every 30 seconds
+
+[Timer]
+OnBootSec=15s
+OnUnitActiveSec=30s
+AccuracySec=5s
+
+[Install]
+WantedBy=timers.target
 EOF
 }
 
@@ -168,13 +206,14 @@ write_if_changed() {  # 路徑 內容；內容不同才寫入，回傳 0 表示�
 }
 
 setup_network() {
-    step "容器網路：橋接 $NAT_BRIDGE（$NAT_GATEWAY），$NAT_SUBNET 經主機 MASQUERADE 上網"
+    step "容器網路：橋接 $NAT_BRIDGE（$NAT_GATEWAY），容器之間和到主機、內部網段都隔離，只能經預設閘道上網"
     if $DRY_RUN; then
         printf '    %s[dry-run]%s 寫入 %s 並 ifup %s：\n' "$C_DIM" "$C_RESET" "$BRIDGE_FILE" "$NAT_BRIDGE"
         bridge_config | sed 's/^/        /'
         printf '    %s[dry-run]%s 寫入 %s：\n' "$C_DIM" "$C_RESET" "$NETWORK_RULES"
         labctl pve render-network | sed 's/^/        /'
-        printf '    %s[dry-run]%s 寫入 /etc/systemd/system/%s 並啟用（打開 IP 轉送）\n' "$C_DIM" "$C_RESET" "$NETWORK_UNIT"
+        printf '    %s[dry-run]%s 寫入並啟用 %s（打開 IP 轉送）和 %s.timer：\n' "$C_DIM" "$C_RESET" "$NETWORK_UNIT" "$SYNC_UNIT"
+        printf '        %s\n' "$(sync_command)"
         return
     fi
     install -d -m 0700 "$STATE_DIR"
@@ -184,10 +223,14 @@ setup_network() {
     nft -c -f "$NETWORK_RULES.new"
     mv "$NETWORK_RULES.new" "$NETWORK_RULES"
     write_if_changed "/etc/systemd/system/$NETWORK_UNIT" "$(network_unit)" || true
+    write_if_changed "/etc/systemd/system/$SYNC_UNIT.service" "$(sync_service)" || true
+    write_if_changed "/etc/systemd/system/$SYNC_UNIT.timer" "$(sync_timer)" || true
     systemctl daemon-reload
-    systemctl enable "$NETWORK_UNIT" >/dev/null 2>&1
+    systemctl enable "$NETWORK_UNIT" "$SYNC_UNIT.timer" >/dev/null 2>&1
+    # 重新載入時 nft -f 整份是一個交易，不會有沒規則的空窗；閘道集合會先清空、隨即重新同步。
     systemctl restart "$NETWORK_UNIT"
-    ok "nft table shell_lab_nat 已載入，IP 轉送已打開"
+    systemctl start "$SYNC_UNIT.timer"
+    ok "nft 規則（NAT、L3、L2 隔離）已載入，IP 轉送已打開，閘道同步已啟用"
 
     # 只啟用這座橋接，不重新套用整份網路設定。
     if write_if_changed "$BRIDGE_FILE" "$(bridge_config)"; then
@@ -200,12 +243,17 @@ setup_network() {
 remove_network() {
     local orig=0
     step "移除容器網路"
-    if systemctl -q is-enabled "$NETWORK_UNIT" 2>/dev/null; then
-        systemctl disable --now "$NETWORK_UNIT" >/dev/null 2>&1
-    fi
-    rm -f "/etc/systemd/system/$NETWORK_UNIT"
+    local unit table tables
+    for unit in "$SYNC_UNIT.timer" "$SYNC_UNIT.service" "$NETWORK_UNIT"; do
+        systemctl disable --now "$unit" >/dev/null 2>&1 || true
+        rm -f "/etc/systemd/system/$unit"
+    done
     systemctl daemon-reload
-    nft delete table ip shell_lab_nat 2>/dev/null || true
+    IFS='|' read -ra tables <<<"$NETWORK_TABLES"
+    for table in "${tables[@]}"; do
+        # shellcheck disable=SC2086 # family 和名稱要分成兩個參數
+        nft delete table $table 2>/dev/null || true
+    done
     if [ -f "$BRIDGE_FILE" ]; then
         ifdown "$NAT_BRIDGE" >/dev/null 2>&1 || true
         rm -f "$BRIDGE_FILE"
@@ -214,7 +262,7 @@ remove_network() {
     sysctl -q -w "net.ipv4.ip_forward=$orig"
     rm -f "$NETWORK_RULES" "$STATE_DIR/ip_forward.orig"
     rmdir "$STATE_DIR" 2>/dev/null || true
-    ok "已刪除橋接 $NAT_BRIDGE、nft table shell_lab_nat 和 $NETWORK_UNIT，ip_forward 設回 $orig"
+    ok "已刪除橋接 $NAT_BRIDGE、nft 規則和 systemd 服務，ip_forward 設回 $orig"
 }
 
 # ---- 容器 ----

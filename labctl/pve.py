@@ -28,6 +28,7 @@ from labctl.config import (
     select_students,
     student_ids,
 )
+from labctl.firewall import render_gateway_sync, render_ruleset
 from labctl.labs.lab05_organize import RM_GUARD
 from labctl.plan import guest_hostname
 from labctl.private import check_private
@@ -272,12 +273,76 @@ def build_pve_plan(config, selected=None):
 
 
 NAT_TABLE = "ip shell_lab_nat"
+ISOLATION_TABLE = "inet shell_lab_pve"
+L2_TABLE = "bridge shell_lab_l2"
 
 
 def render_network(config):
-    """Return an nft script that atomically replaces the NAT table of the container network.
+    """Return the nft script of the container network: NAT, then L3 isolation, then L2 isolation.
 
-    Containers reach the internet through the host: their source address is rewritten on the way out of
+    `nft -f` applies the whole file as one transaction.
+    """
+    return render_nat(config) + "\n" + render_isolation(config) + "\n" + render_l2(config)
+
+
+def render_isolation(config):
+    """The lab VMs' isolation rules on the NAT bridge, plus port-forwarded SSH coming in.
+
+    Containers reach the internet only via the host's default gateway, never the host itself, private
+    ranges, PROTECTED_NETWORKS or on-link LAN hosts. The gateway set is filled by render_gateway_sync.
+    """
+    protected = [str(n) for n in config.protected_networks]
+    return render_ruleset(protected, table=ISOLATION_TABLE, interfaces=config.nat_bridge, ssh_in=True)
+
+
+def render_gateway_sync_pve(gateways):
+    return render_gateway_sync(gateways, table=ISOLATION_TABLE)
+
+
+def veth_name(ctid):
+    """Host side of the container's net0, as PVE names it."""
+    return f"veth{ctid}i0"
+
+
+def render_l2(config):
+    """Bridge-level rules on the NAT bridge.
+
+    - Nothing is bridged between two containers: every frame has to go through the host's L3 rules.
+    - Each container may only send IPv4 and ARP from its own address, so it cannot take over another
+      container's address (and its port-forwarded SSH). A port not in the plan is cut off.
+    - No IPv6 at all.
+    """
+    bridge = f'"{config.nat_bridge}"'
+    ports = ", ".join(f'"{veth_name(i["ctid"])}" . {i["address"]}' for i in build_pve_plan(config)["instances"])
+    return (
+        "#!/usr/sbin/nft -f\n"
+        "# Managed by labctl (labctl pve render-network). Regenerate instead of editing.\n"
+        f"table {L2_TABLE}\n"
+        f"delete table {L2_TABLE}\n"
+        "\n"
+        f"table {L2_TABLE} {{\n"
+        "\tset ports {\n"
+        "\t\ttype ifname . ipv4_addr\n"
+        f"\t\telements = {{ {ports} }}\n"
+        "\t}\n"
+        "\n"
+        "\tchain prerouting {\n"
+        "\t\ttype filter hook prerouting priority filter - 10; policy accept;\n"
+        f"\t\tmeta ibrname {bridge} ether type ip6 drop\n"
+        f"\t\tmeta ibrname {bridge} ether type ip iifname . ip saddr != @ports drop\n"
+        f"\t\tmeta ibrname {bridge} ether type arp iifname . arp saddr ip != @ports drop\n"
+        "\t}\n"
+        "\n"
+        "\tchain forward {\n"
+        "\t\ttype filter hook forward priority filter - 10; policy accept;\n"
+        f"\t\tmeta ibrname {bridge} drop\n"
+        "\t}\n"
+        "}\n"
+    )
+
+
+def render_nat(config):
+    """Containers reach the internet through the host: their source address is rewritten on the way out of
     any interface other than the NAT bridge.
     """
     return (

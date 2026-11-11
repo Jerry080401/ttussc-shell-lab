@@ -51,6 +51,8 @@ def render_ruleset(protected_networks, table=TABLE, interfaces=f"{BRIDGE_PREFIX}
     passes its own table and NAT bridge, and `ssh_in` to let port-forwarded SSH reach the guests.
     """
     lab = f'"{interfaces}"'
+    # 轉發進來的 SSH：去程只放行 22 埠，回程（使用者可能在私有或同一個網段）不受下面的目的地限制。
+    replies = f"\t\tiifname {lab} ct status dnat accept\n" if ssh_in else ""
     inbound = f"\t\toifname {lab} ct status dnat tcp dport 22 accept\n" if ssh_in else ""
     return (
         "#!/usr/sbin/nft -f\n"
@@ -82,6 +84,7 @@ def render_ruleset(protected_networks, table=TABLE, interfaces=f"{BRIDGE_PREFIX}
         "\t\ttype filter hook forward priority filter - 10; policy accept;\n"
         f"\t\tiifname {lab} meta nfproto ipv6 drop\n"
         f"\t\toifname {lab} meta nfproto ipv6 drop\n"
+        f"{replies}"
         f"\t\tiifname {lab} ip daddr @blocked_v4 drop\n"
         f"\t\tiifname {lab} ip daddr @uplink_gateways drop\n"
         f"\t\tiifname {lab} rt ip nexthop != @uplink_gateways drop\n"

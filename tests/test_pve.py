@@ -154,8 +154,31 @@ class NetworkRulesTest(unittest.TestCase):
     def test_masquerade_the_subnet_leaving_any_other_interface(self):
         text = render_network(config(NAT_BRIDGE="vmbr7", NAT_SUBNET="10.20.0.0/24"))
         self.assertIn('ip saddr 10.20.0.0/24 oifname != "vmbr7" masquerade', text)
-        tables = [line for line in text.splitlines() if line.startswith(("table", "delete"))]
-        self.assertTrue(all("ip shell_lab_nat" in line for line in tables), tables)
+
+    def test_only_own_tables_are_replaced(self):
+        text = render_network(config())
+        tables = {
+            line.split(" ", 1)[1] if line.startswith("table") else line.split(" ", 2)[2]
+            for line in text.splitlines()
+            if line.startswith(("table ", "delete table "))
+        }
+        self.assertEqual(
+            {t.rstrip(" {") for t in tables}, {"ip shell_lab_nat", "inet shell_lab_pve", "bridge shell_lab_l2"}
+        )
+
+    def test_vm_isolation_on_the_nat_bridge_with_ssh_coming_in(self):
+        text = render_network(config(PROTECTED_NETWORKS="203.0.113.0/24"))
+        self.assertIn('iifname "vmbr1" rt ip nexthop != @uplink_gateways drop', text)
+        self.assertIn("203.0.113.0/24", text)
+        self.assertIn('oifname "vmbr1" ct status dnat tcp dport 22 accept', text)
+        self.assertIn('iifname "vmbr1" ct status dnat accept', text)
+        self.assertNotIn('"tl*"', text)
+
+    def test_each_container_port_is_tied_to_its_address(self):
+        text = render_network(config(STUDENT_COUNT="2"))
+        self.assertIn('elements = { "veth201i0" . 10.10.10.2, "veth202i0" . 10.10.10.3 }', text)
+        self.assertIn('meta ibrname "vmbr1" drop', text)
+        self.assertIn("iifname . arp saddr ip != @ports drop", text)
 
 
 class PortForwardRulesTest(unittest.TestCase):
