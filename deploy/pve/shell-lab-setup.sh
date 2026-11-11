@@ -2,11 +2,12 @@
 # 在 Proxmox VE 主機上用原生 LXC 部署 shell-lab：
 # 一座 NAT 橋接、每人一台 Ubuntu 容器，以及讓使用者連進容器的連線方式（access/<ACCESS_MODE>.sh）。
 #
-# 用法（root）：shell-lab-setup.sh [--dry-run | --passwords | --labs [學生 [題目]] | --stop | --start | --destroy]
+# 用法（root）：shell-lab-setup.sh [--dry-run | --passwords | --labs [學生 [題目]] | --connect | --stop | --start | --destroy]
 #   （無）        建立 NAT 橋接、連線方式和全部容器
 #   --dry-run     只印出會做的事，不實際執行
 #   --passwords   設定密碼：stdin 每行「學生ID 密碼」（labctl pve passwords-export 的輸出）
 #   --labs        放題目；~/lab 已經有東西的跳過。加學生和題目只重設那一題，例如 --labs student05 05-organize
+#   --connect     印出每個人的連線指令（學生ID<TAB>指令），labctl pve cards 用它產生連線清單
 #   --stop        關閉所有容器（保留）
 #   --start       啟動所有容器
 #   --destroy     刪除所有容器、連線方式和容器網路，主機恢復原狀（需要確認）
@@ -56,7 +57,7 @@ run() {
 }
 
 usage() {
-    sed -n '5,12s/^# \{0,1\}//p' "$0"
+    sed -n '5,13s/^# \{0,1\}//p' "$0"
     exit "${1:-0}"
 }
 
@@ -435,7 +436,7 @@ cmd_create() {
     if $DRY_RUN; then
         step "dry-run 結束，沒有做任何變更"
     else
-        step "完成。下一步設定密碼：labctl pve passwords-export | $0 --passwords（make pve 會自動接好）"
+        step "完成。接著設定密碼、放題目、產生連線清單（make pve 會自動接著做）"
     fi
 }
 
@@ -490,6 +491,15 @@ cmd_labs() {
     [ "${#failed[@]}" -eq 0 ] || die "這些學生的題目沒有放成功：${failed[*]}"
 }
 
+# 連線指令由連線方式決定。stdout 只有「學生ID<TAB>指令」，其他訊息都到 stderr。
+cmd_connect() {
+    local sid
+    access_prepare >&2
+    for sid in "${STUDENTS[@]}"; do
+        printf '%s\t%s\n' "$sid" "$(access_connect "$sid")"
+    done
+}
+
 cmd_stop() {
     precheck false
     step "關閉容器"
@@ -519,7 +529,7 @@ cmd_destroy() {
 
 case ${1:-} in
 -h | --help) usage 0 ;;
-"" | --dry-run | --passwords | --labs | --stop | --start | --destroy) ;;
+"" | --dry-run | --passwords | --labs | --connect | --stop | --start | --destroy) ;;
 *) usage 2 >&2 ;;
 esac
 load_settings
@@ -531,6 +541,7 @@ case ${1:-} in
     ;;
 --passwords) cmd_passwords ;;
 --labs) cmd_labs "${2:-}" "${3:-}" ;;
+--connect) cmd_connect ;;
 --stop) cmd_stop ;;
 --start) cmd_start ;;
 --destroy) cmd_destroy ;;

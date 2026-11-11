@@ -1,7 +1,9 @@
 """deploy/pve/shell-lab-setup.sh against a fake `pct`, to check the loops and that secrets only travel on stdin."""
 
+import json
 import os
 import subprocess
+import sys
 import unittest
 
 from tests.helpers import REPO, SECRET_HEX, scratch_dir
@@ -49,7 +51,9 @@ class PveScriptTest(unittest.TestCase):
             (bin_dir / name).write_text(text)
             (bin_dir / name).chmod(0o755)
         env_file = self.dir / "shell-lab.env"
-        env_file.write_text(f"STUDENT_COUNT=3\nLAB_SECRET={SECRET_HEX}\nPORTFORWARD_SOURCES=192.0.2.0/24\n")
+        env_file.write_text(
+            f"STUDENT_COUNT=3\nLAB_SECRET={SECRET_HEX}\nPORTFORWARD_SOURCES=192.0.2.0/24\nPORTFORWARD_ADDRESS=192.0.2.1\n"
+        )
         env_file.chmod(0o600)
         self.log = self.dir / "pct.log"
         self.env = {
@@ -123,6 +127,34 @@ class PveScriptTest(unittest.TestCase):
             result = self.run_script("--labs", *args)
             self.assertNotEqual(result.returncode, 0, args)
         self.assertEqual(self.calls(), [])
+
+    def test_connect_lines_become_the_connection_list(self):
+        result = self.run_script("--connect")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(
+            result.stdout,
+            "student01\tssh student@192.0.2.1 -p 22001\n"
+            "student02\tssh student@192.0.2.1 -p 22002\n"
+            "student03\tssh student@192.0.2.1 -p 22003\n",
+        )
+        passwords = self.dir / "passwords.json"
+        passwords.write_text(json.dumps({f"student0{n}": f"pass-word-000{n}" for n in (1, 2, 3)}))
+        passwords.chmod(0o600)
+        out = self.dir / "cards.md"
+        cards = subprocess.run(
+            [
+                *(sys.executable, "-m", "labctl", "--env", self.env["ENV_FILE"]),
+                *("pve", "cards", "--passwords", str(passwords), "--out", str(out)),
+            ],
+            cwd=REPO,
+            input=result.stdout,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(cards.returncode, 0, cards.stderr)
+        self.assertIn(
+            "ssh student@192.0.2.1 -p 22003\n  ```\n  - 密碼 `pass-word-0003`", out.read_text(encoding="utf-8")
+        )
 
     def test_bad_settings_stop_before_touching_containers(self):
         (self.dir / "shell-lab.env").write_text("STUDENT_COUNT=0\nPORTFORWARD_SOURCES=192.0.2.0/24\n")

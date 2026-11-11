@@ -24,7 +24,7 @@ export TF_VAR_management_url := https://$(NETBIRD_DOMAIN)
 export TF_VAR_setup_key_days := $(SETUP_KEY_DAYS)
 
 .PHONY: help env check netbird class-start class-stop keys renew-keys host vms enroll labs passwords cards status \
-	reset-lab teardown pve-env pve-check pve-upload pve-dry-run pve pve-passwords pve-labs pve-reset-lab pve-stop pve-start pve-destroy test lint fmt
+	reset-lab teardown pve-env pve-check pve-upload pve-dry-run pve pve-passwords pve-labs pve-reset-lab pve-cards pve-stop pve-start pve-destroy test lint fmt
 
 help: ## 列出所有指令
 	@grep -E '^[a-z-]+:.*## ' $(firstword $(MAKEFILE_LIST)) | awk -F':.*## ' '{printf "  make %-12s %s\n", $$1, $$2}'
@@ -112,11 +112,16 @@ LABCTL_PVE := $(PYTHON) -m labctl --env $(PVE_ENV)
 PVE_ROOT := s=; [ \$$(id -u) = 0 ] || s=sudo; \$$s
 PVE_SETUP := $(PVE_ROOT) $(PVE_DIR)/deploy/pve/shell-lab-setup.sh
 PVE_PASSWORDS := local/pve-passwords.json
+PVE_CARDS := local/pve-cards.md
 
 # 密碼存在本機（權限 600），經 ssh 的 stdin 送到主機，再經 stdin 設進容器。
 define pve_set_passwords
 	$(LABCTL_PVE) pve passwords-new --file $(PVE_PASSWORDS)
 	$(LABCTL_PVE) pve passwords-export --file $(PVE_PASSWORDS) | ssh $(PVE_SSH) "$(PVE_SETUP) --passwords"
+endef
+
+define pve_write_cards
+	ssh $(PVE_SSH) "$(PVE_SETUP) --connect" | $(LABCTL_PVE) pve cards --passwords $(PVE_PASSWORDS) --out $(PVE_CARDS)
 endef
 
 pve-env: ## PVE LXC 版：從範例建立 deploy/pve/shell-lab.env，LAB_SECRET 自動產生
@@ -141,10 +146,11 @@ pve-upload: pve-check
 pve-dry-run: pve-upload ## PVE LXC 版：預覽會做的事，不做任何變更
 	ssh $(PVE_SSH) "$(PVE_SETUP) --dry-run"
 
-pve: pve-upload ## PVE LXC 版：建立容器網路、容器和轉發規則，設定密碼（local/pve-passwords.json），放題目
+pve: pve-upload ## PVE LXC 版：建立全部、設定密碼、放題目，連線清單寫到 local/pve-cards.md
 	ssh $(PVE_SSH) "$(PVE_SETUP)"
 	$(pve_set_passwords)
 	ssh $(PVE_SSH) "$(PVE_SETUP) --labs"
+	$(pve_write_cards)
 
 pve-passwords: pve-upload ## PVE LXC 版：替還沒有密碼的學生產生密碼，並設定到每台容器
 	$(pve_set_passwords)
@@ -156,6 +162,9 @@ pve-reset-lab: pve-upload ## PVE LXC 版：重設一位學生的一題：make pv
 	@[[ "$(STUDENT)" =~ ^student[0-9]{2}$$ && "$(LAB)" =~ ^[0-9]{2}-[a-z0-9-]+$$ ]] || \
 		{ echo "usage: make pve-reset-lab STUDENT=student05 LAB=05-organize" >&2; exit 2; }
 	ssh $(PVE_SSH) "$(PVE_SETUP) --labs $(STUDENT) $(LAB)"
+
+pve-cards: pve-upload ## PVE LXC 版：全部學生的連線指令和密碼，寫到 local/pve-cards.md
+	$(pve_write_cards)
 
 pve-stop: pve-upload ## PVE LXC 版：關閉所有容器（保留）
 	ssh $(PVE_SSH) "$(PVE_SETUP) --stop"

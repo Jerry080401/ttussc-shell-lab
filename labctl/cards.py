@@ -115,3 +115,62 @@ def render_markdown(cards):
 def write_markdown(path, cards):
     """Write the list to `path`, readable only by the teacher (mode 600), replacing it in one step."""
     write_private(path, render_markdown(cards.values()))
+
+
+# PVE 版：連線指令由連線方式決定（shell-lab-setup.sh --connect 的輸出），這裡只合併密碼。
+CONNECT_MARKDOWN = """\
+# Linux Lab 連線指令
+
+每個人只拿自己的那一段。在終端機執行連線指令，第一次連線問要不要繼續時輸入 yes，再輸入密碼。
+
+{cards}"""
+
+CONNECT_CARD = """\
+- {sid}
+  ```
+  {connect}
+  ```
+  - 密碼 {password}
+"""
+
+# 連線指令放進程式碼區塊，只接受不會弄壞格式的字元。
+CONNECT = re.compile(r"[A-Za-z0-9][A-Za-z0-9 @:._/=-]{0,199}")
+
+
+def parse_connect_lines(text):
+    """`sid<TAB>command` lines from shell-lab-setup.sh --connect, as {sid: command}."""
+    commands = {}
+    for line in text.splitlines():
+        if not line.strip():
+            continue
+        sid, sep, command = line.partition("\t")
+        if not sep or not CONNECT.fullmatch(command) or sid in commands:
+            raise ValueError(f"malformed connection line: {line!r}")
+        commands[sid] = command
+    return commands
+
+
+def build_connect_cards(students, commands, passwords):
+    """{student_id: card}, stopping if anyone lacks a connection command or a password."""
+    cards, problems = {}, []
+    for sid in students:
+        command, password = commands.get(sid), passwords.get(sid)
+        bad = [name for name, ok in (("command", command), ("password", _matches(PASSWORD, password))) if not ok]
+        if bad:
+            problems.append(f"{sid} ({', '.join(bad)})")
+            continue
+        cards[sid] = {"sid": sid, "connect": command, "password": password}
+    if problems:
+        raise ValueError("missing or malformed card data: " + ", ".join(problems))
+    return cards
+
+
+def write_connect_markdown(path, cards):
+    """Write the PVE connection list to `path` (mode 600), replacing it in one step."""
+    text = CONNECT_MARKDOWN.format(
+        cards="".join(
+            CONNECT_CARD.format(sid=c["sid"], connect=c["connect"], password=_md_code(c["password"]))
+            for c in cards.values()
+        )
+    )
+    write_private(path, text)

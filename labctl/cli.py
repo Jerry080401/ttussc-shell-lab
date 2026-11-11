@@ -210,6 +210,14 @@ def cmd_pve_labs_build(args):
     print(f"built {len(flags)} labs for {args.student} in {args.out}")
 
 
+def cmd_pve_cards(args):
+    config = load_pve_config(args.env)
+    commands = cards.parse_connect_lines(sys.stdin.read())
+    built = cards.build_connect_cards(config.students(), commands, passwords.load(args.passwords))
+    cards.write_connect_markdown(args.out, built)
+    print(f"wrote {len(built)} students to {args.out}")
+
+
 def cmd_pve_passwords_new(args):
     added = passwords.ensure(args.file, load_pve_config(args.env).students())
     print(f"{args.file}: added {added} passwords")
@@ -311,6 +319,11 @@ def build_parser():
     pve_build.add_argument("student")
     pve_build.add_argument("--out", required=True, help="empty or missing directory")
     pve_build.add_argument("--round", type=int, default=1, help="data round, bump it for fresh data")
+    pve_cards = command(
+        pve, "cards", cmd_pve_cards, "write every student's command and password (stdin: shell-lab-setup.sh --connect)"
+    )
+    pve_cards.add_argument("--passwords", default="local/pve-passwords.json")
+    pve_cards.add_argument("--out", default="local/pve-cards.md", help="Markdown file, mode 600, replaced if it exists")
     return parser
 
 
