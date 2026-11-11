@@ -6,7 +6,11 @@ Rules, applied to traffic entering from any lab bridge (every interface named tl
   and to the default gateway itself. Everything else must be routed *via* a
   known default gateway (`rt ip nexthop`), so on-link LAN hosts are unreachable
   even when the LAN uses public addresses.
-- IPv6 dropped entirely. New inbound connections to VMs dropped.
+- IPv6 dropped entirely. New inbound connections to VMs dropped, except, when
+  asked for, SSH that the host port-forwards to a guest (PVE deployment).
+
+The lab host matches its tl* bridges; the PVE deployment uses the same rules in
+its own table on its NAT bridge.
 
 The gateway set starts empty and is filled by `render_gateway_sync`. While it is
 empty or stale (e.g. DHCP moved the host to another network), VMs cannot reach
@@ -39,20 +43,22 @@ def _v4_set(networks):
     return ", ".join(str(n) for n in collapsed)
 
 
-def render_ruleset(protected_networks):
-    """Return an nft script that atomically replaces the shell_lab table.
+def render_ruleset(protected_networks, table=TABLE, interfaces=f"{BRIDGE_PREFIX}*", ssh_in=False):
+    """Return an nft script that atomically replaces `table`.
 
-    The rules match every interface named tl*, not the bridges of today's class list,
-    so a VM left over after STUDENT_COUNT shrinks is still isolated.
+    On the lab host the rules match every interface named tl*, not the bridges of today's class
+    list, so a VM left over after STUDENT_COUNT shrinks is still isolated. The PVE deployment
+    passes its own table and NAT bridge, and `ssh_in` to let port-forwarded SSH reach the guests.
     """
-    lab = f'"{BRIDGE_PREFIX}*"'
+    lab = f'"{interfaces}"'
+    inbound = f"\t\toifname {lab} ct status dnat tcp dport 22 accept\n" if ssh_in else ""
     return (
         "#!/usr/sbin/nft -f\n"
         "# Managed by labctl. Regenerate instead of editing.\n"
-        f"table {TABLE}\n"
-        f"delete table {TABLE}\n"
+        f"table {table}\n"
+        f"delete table {table}\n"
         "\n"
-        f"table {TABLE} {{\n"
+        f"table {table} {{\n"
         "\tset blocked_v4 {\n"
         "\t\ttype ipv4_addr\n"
         "\t\tflags interval\n"
@@ -80,6 +86,7 @@ def render_ruleset(protected_networks):
         f"\t\tiifname {lab} ip daddr @uplink_gateways drop\n"
         f"\t\tiifname {lab} rt ip nexthop != @uplink_gateways drop\n"
         f"\t\toifname {lab} ct state established,related accept\n"
+        f"{inbound}"
         f"\t\toifname {lab} drop\n"
         "\t}\n"
         "}\n"
@@ -95,10 +102,10 @@ def default_gateways(routes):
     return [str(g) for g in sorted(gateways)]
 
 
-def render_gateway_sync(gateways):
+def render_gateway_sync(gateways, table=TABLE):
     """Return an nft script that atomically replaces the allowed uplink gateways."""
     addresses = [str(ipaddress.IPv4Address(g)) for g in gateways]
-    script = f"flush set {TABLE} uplink_gateways\n"
+    script = f"flush set {table} uplink_gateways\n"
     if addresses:
-        script += f"add element {TABLE} uplink_gateways {{ {', '.join(addresses)} }}\n"
+        script += f"add element {table} uplink_gateways {{ {', '.join(addresses)} }}\n"
     return script
