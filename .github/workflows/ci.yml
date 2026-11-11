@@ -24,7 +24,7 @@ jobs:
         run: |
           sudo apt-get update -q
           sudo apt-get install -y -q nftables
-          sudo "$(command -v python)" -m unittest -v tests.test_firewall_netns tests.test_pve_netns tests.test_host_scripts
+          sudo "$(command -v python)" -m unittest -v tests.test_firewall_netns tests.test_pve_netns tests.test_host_scripts tests.test_pve_scripts
 
   shell:
     runs-on: ubuntu-24.04

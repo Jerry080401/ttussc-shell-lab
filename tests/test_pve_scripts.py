@@ -96,6 +96,34 @@ class PveScriptTest(unittest.TestCase):
         self.assertEqual(result.returncode, 1)
         self.assertEqual(self.calls(), ["exec 203 | chpasswd | student:pass-three-cc"])
 
+    @unittest.skipUnless(os.geteuid() == 0, "building every lab reads files only root can read (lab 11 is mode 000)")
+    def test_labs_are_unpacked_as_the_student(self):
+        result = self.run_script("--labs", "student01")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        unpack = [c for c in self.calls() if "runuser -u student -- sh -c mkdir -p /home/student/lab" in c]
+        self.assertEqual(len(unpack), 1)
+        self.assertTrue(unpack[0].startswith("exec 201 | "))
+
+    def test_one_lab_can_be_reset_and_the_old_copy_kept(self):
+        result = self.run_script("--labs", "student02", "05-organize")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("重設 05-organize，舊的在 ~/lab/.05-organize.old-", result.stdout)
+        resets = [c for c in self.calls() if "runuser -u student -- sh -c cd /home/student/lab" in c]
+        self.assertEqual(len(resets), 1)
+        self.assertTrue(resets[0].startswith("exec 202 | "))
+        self.assertIn(" sh 05-organize .05-organize.old-", resets[0])
+
+    def test_bad_lab_or_student_is_refused_before_touching_containers(self):
+        for args in (
+            ("student02", "../etc"),
+            ("student02", "05-organize;id"),
+            ("student02", "99-no-such-lab"),
+            ("student09", "05-organize"),
+        ):
+            result = self.run_script("--labs", *args)
+            self.assertNotEqual(result.returncode, 0, args)
+        self.assertEqual(self.calls(), [])
+
     def test_bad_settings_stop_before_touching_containers(self):
         (self.dir / "shell-lab.env").write_text("STUDENT_COUNT=0\nPORTFORWARD_SOURCES=192.0.2.0/24\n")
         result = self.run_script("--passwords", stdin="student01 pass-one-aaaa\n")

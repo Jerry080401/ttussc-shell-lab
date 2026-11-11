@@ -2,10 +2,11 @@
 # 在 Proxmox VE 主機上用原生 LXC 部署 shell-lab：
 # 一座 NAT 橋接、每人一台 Ubuntu 容器，以及讓使用者連進容器的連線方式（access/<ACCESS_MODE>.sh）。
 #
-# 用法（root）：shell-lab-setup.sh [--dry-run | --passwords | --stop | --start | --destroy]
+# 用法（root）：shell-lab-setup.sh [--dry-run | --passwords | --labs [學生 [題目]] | --stop | --start | --destroy]
 #   （無）        建立 NAT 橋接、連線方式和全部容器
 #   --dry-run     只印出會做的事，不實際執行
 #   --passwords   設定密碼：stdin 每行「學生ID 密碼」（labctl pve passwords-export 的輸出）
+#   --labs        放題目；~/lab 已經有東西的跳過。加學生和題目只重設那一題，例如 --labs student05 05-organize
 #   --stop        關閉所有容器（保留）
 #   --start       啟動所有容器
 #   --destroy     刪除所有容器、連線方式和容器網路，主機恢復原狀（需要確認）
@@ -55,7 +56,7 @@ run() {
 }
 
 usage() {
-    sed -n '5,11s/^# \{0,1\}//p' "$0"
+    sed -n '5,12s/^# \{0,1\}//p' "$0"
     exit "${1:-0}"
 }
 
@@ -368,6 +369,60 @@ destroy_one() {
 
 list_one() { printf '      CT %s  %s\n' "$CTID" "$CT_NAME"; }
 
+# ---- 題目 ----
+# 和 NetBird 版的 host/seed-labs.sh 一樣：在主機上以 root 產生（第 11 題有只有 root 讀得到的檔案），
+# 以學生的身分解開，學生在 ~/lab 裡放的連結就指不到別的地方。~/lab 已經有東西就跳過，不覆蓋作業；
+# 指定一題時只重設那一題，舊的資料夾改名留在 ~/lab。題目資料由 LAB_SECRET 推導，每次產生的都一樣。
+ensure_git() {
+    command -v git >/dev/null && return
+    step "安裝 git（第 13 題產生時要用）"
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -q git >/dev/null || die "安裝 git 失敗"
+}
+
+as_student() {
+    pct exec "$CTID" -- runuser -u student -- "$@"
+}
+
+# 這個函式在 || 裡呼叫，set -e 不會生效，所以每一步都檢查結果。
+seed_one() {
+    local lab=$1 tmp old count
+    tmp=$(mktemp -d) || return 1
+    if ! labctl pve labs-build "$SID" --out "$tmp/lab" </dev/null >/dev/null; then
+        rm -rf "$tmp"
+        return 1
+    fi
+    if [ -n "$lab" ]; then
+        if [ ! -d "$tmp/lab/$lab" ]; then
+            rm -rf "$tmp"
+            die "沒有這一題：$lab"
+        fi
+        old=".$lab.old-$(date +%Y%m%d-%H%M%S)"
+        # shellcheck disable=SC2016 # $1、$2 要在容器裡展開
+        if tar -C "$tmp/lab" -cf - "$lab" | as_student sh -c \
+            'cd /home/student/lab && if [ -e "$1" ] || [ -L "$1" ]; then mv "$1" "$2"; fi && tar -xpf -' sh "$lab" "$old"; then
+            ok "CT $CTID $CT_NAME：重設 $lab，舊的在 ~/lab/$old"
+        else
+            rm -rf "$tmp"
+            return 1
+        fi
+        rm -rf "$tmp"
+        return 0
+    fi
+    # shellcheck disable=SC2016 # $(...) 要在容器裡展開
+    if ! pct exec "$CTID" -- sh -c '[ ! -L /home/student/lab ] && { [ ! -e /home/student/lab ] || [ -z "$(ls -A /home/student/lab)" ]; }' </dev/null; then
+        ok "CT $CTID $CT_NAME：~/lab 已經有東西，略過"
+        rm -rf "$tmp"
+        return 0
+    fi
+    if ! tar -C "$tmp/lab" -cf - . | as_student sh -c 'mkdir -p /home/student/lab && tar -C /home/student/lab -xpf -'; then
+        rm -rf "$tmp"
+        return 1
+    fi
+    rm -rf "$tmp"
+    count=$(pct exec "$CTID" -- find /home/student/lab -mindepth 1 -maxdepth 1 -type d </dev/null | wc -l)
+    ok "CT $CTID $CT_NAME：放好 $count 題"
+}
+
 # ---- 子命令 ----
 cmd_create() {
     step "前置檢查"
@@ -411,6 +466,30 @@ cmd_passwords() {
     [ "${#failed[@]}" -eq 0 ] || die "這些學生沒有設定成功：${failed[*]}"
 }
 
+cmd_labs() {
+    local only=${1:-} lab=${2:-} failed=()
+    if [ -n "$lab" ] && ! [[ $lab =~ ^[0-9]{2}-[a-z0-9-]+$ ]]; then
+        die "題目名稱不對：$lab（例如 05-organize）"
+    fi
+    if [ -n "$only" ] && ! printf '%s\n' "${STUDENTS[@]}" | grep -qxF -- "$only"; then
+        die "$only 不在名單上"
+    fi
+    precheck false
+    ensure_git
+    step "放題目${lab:+（只重設 $lab）}"
+    for SID in "${STUDENTS[@]}"; do
+        [ -z "$only" ] || [ "$SID" = "$only" ] || continue
+        ct_info "$SID"
+        if ! ct_owned; then
+            warn "$SID 的容器 CT $CTID 不存在"
+            failed+=("$SID")
+            continue
+        fi
+        seed_one "$lab" || failed+=("$SID")
+    done
+    [ "${#failed[@]}" -eq 0 ] || die "這些學生的題目沒有放成功：${failed[*]}"
+}
+
 cmd_stop() {
     precheck false
     step "關閉容器"
@@ -440,7 +519,7 @@ cmd_destroy() {
 
 case ${1:-} in
 -h | --help) usage 0 ;;
-"" | --dry-run | --passwords | --stop | --start | --destroy) ;;
+"" | --dry-run | --passwords | --labs | --stop | --start | --destroy) ;;
 *) usage 2 >&2 ;;
 esac
 load_settings
@@ -451,6 +530,7 @@ case ${1:-} in
     cmd_create
     ;;
 --passwords) cmd_passwords ;;
+--labs) cmd_labs "${2:-}" "${3:-}" ;;
 --stop) cmd_stop ;;
 --start) cmd_start ;;
 --destroy) cmd_destroy ;;

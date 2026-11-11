@@ -201,6 +201,15 @@ def cmd_pve_render_guest_setup(args):
     sys.stdout.write(render_guest_setup(load_pve_config(args.env)))
 
 
+def cmd_pve_labs_build(args):
+    config = load_pve_config(args.env)
+    select_students(config.students(), [args.student])  # 不在名單上的學生直接停止
+    if not config.lab_secret:
+        raise ValueError("LAB_SECRET is empty, create the settings with: make pve-env")
+    flags = build_labs(args.out, config.lab_secret, config.cohort, args.student, args.round, config.flag_prefix)
+    print(f"built {len(flags)} labs for {args.student} in {args.out}")
+
+
 def cmd_pve_passwords_new(args):
     added = passwords.ensure(args.file, load_pve_config(args.env).students())
     print(f"{args.file}: added {added} passwords")
@@ -298,6 +307,10 @@ def build_parser():
         ("passwords-export", cmd_pve_passwords_export, "print `sid password` lines for shell-lab-setup.sh"),
     ):
         command(pve, name, func, help_text).add_argument("--file", default="local/pve-passwords.json")
+    pve_build = command(pve, "labs-build", cmd_pve_labs_build, "create every lab for one student in an empty directory")
+    pve_build.add_argument("student")
+    pve_build.add_argument("--out", required=True, help="empty or missing directory")
+    pve_build.add_argument("--round", type=int, default=1, help="data round, bump it for fresh data")
     return parser
 
 
