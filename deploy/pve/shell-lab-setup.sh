@@ -2,12 +2,13 @@
 # 在 Proxmox VE 主機上用原生 LXC 部署 shell-lab：
 # 一座 NAT 橋接、每人一台 Ubuntu 容器，以及讓使用者連進容器的連線方式（access/<ACCESS_MODE>.sh）。
 #
-# 用法（root）：shell-lab-setup.sh [--dry-run | --stop | --start | --destroy]
-#   （無）      建立 NAT 橋接、連線方式和全部容器，並產生連線資訊檔
-#   --dry-run   只印出會做的事，不實際執行
-#   --stop      關閉所有容器（保留）
-#   --start     啟動所有容器
-#   --destroy   刪除所有容器和連線方式（需要確認）
+# 用法（root）：shell-lab-setup.sh [--dry-run | --passwords | --stop | --start | --destroy]
+#   （無）        建立 NAT 橋接、連線方式和全部容器
+#   --dry-run     只印出會做的事，不實際執行
+#   --passwords   設定密碼：stdin 每行「學生ID 密碼」（labctl pve passwords-export 的輸出）
+#   --stop        關閉所有容器（保留）
+#   --start       啟動所有容器
+#   --destroy     刪除所有容器和連線方式（需要確認）
 #
 # 設定：同目錄的 shell-lab.env（從 shell-lab.env.example 複製），由 labctl 檢查並補上預設值。
 # 也可以用 ENV_FILE=路徑 指定別的設定檔。labctl 在這支腳本往上兩層的目錄（repo 根目錄）。
@@ -17,10 +18,8 @@ here=$(dirname "$(readlink -f "$0")")
 repo=$(readlink -f "$here/../..")
 ENV_FILE=${ENV_FILE:-$here/shell-lab.env}
 
-CRED_FILE=$here/shell-lab-credentials.txt
 INTERFACES=/etc/network/interfaces
 BRIDGE_MARKER="# shell-lab NAT bridge (managed by shell-lab-setup.sh)"
-PASSWORD_LENGTH=12
 DRY_RUN=false
 
 # ---- 輸出 ----
@@ -51,7 +50,7 @@ run() {
 }
 
 usage() {
-    sed -n '5,10s/^# \{0,1\}//p' "$0"
+    sed -n '5,11s/^# \{0,1\}//p' "$0"
     exit "${1:-0}"
 }
 
@@ -75,12 +74,13 @@ load_settings() {
 
 # 讀一位學生的容器欄位：ct_info student01 → CTID CT_NAME ADDRESS
 ct_info() {
-    read -r CTID CT_NAME ADDRESS < <(labctl pve ct "$1" ctid hostname address)
+    read -r CTID CT_NAME ADDRESS < <(labctl pve ct "$1" ctid hostname address </dev/null)
 }
 
-ct_exists() { pct status "$1" >/dev/null 2>&1; }
-ct_running() { [ "$(pct status "$1" 2>/dev/null)" = "status: running" ]; }
-ct_hostname() { pct config "$1" | awk '/^hostname:/ {print $2}'; }
+# 這幾個函式在讀 stdin 的迴圈裡也會用到，不能把 stdin 吃掉。
+ct_exists() { pct status "$1" </dev/null >/dev/null 2>&1; }
+ct_running() { [ "$(pct status "$1" </dev/null 2>/dev/null)" = "status: running" ]; }
+ct_hostname() { pct config "$1" </dev/null | awk '/^hostname:/ {print $2}'; }
 
 # 這個 CTID 是不是這位學生的容器（以主機名稱判斷），避免動到範圍內的其他容器。
 ct_owned() {
@@ -147,11 +147,6 @@ setup_bridge() {
 }
 
 # ---- 容器 ----
-gen_password() {
-    # 去掉容易看錯的 0 O 1 l I。
-    head -c 1024 /dev/urandom | LC_ALL=C tr -dc 'A-HJ-NP-Za-km-z2-9' | cut -c "1-$PASSWORD_LENGTH"
-}
-
 create_args() {
     local args
     args=(
@@ -174,7 +169,7 @@ create_args() {
 
 # 容器內的設定。每一步都檢查結果：這個函式在 || 裡呼叫，set -e 不會生效。
 provision() {
-    local pw groups=()
+    local groups=()
     # shellcheck disable=SC2016 # 這段在容器裡展開
     pct exec "$CTID" -- sh -c 'i=0; until getent hosts archive.ubuntu.com >/dev/null; do
         i=$((i + 1)); [ "$i" -lt 30 ] || exit 1; sleep 2; done' ||
@@ -183,36 +178,27 @@ provision() {
         sh -c 'apt-get update -q && apt-get install -y -q openssh-server sudo' >/dev/null || return 1
     pct exec "$CTID" -- sh -c 'printf "PasswordAuthentication yes\n" >/etc/ssh/sshd_config.d/00-shell-lab.conf' || return 1
     ! $STUDENT_SUDO || groups=(-G sudo)
+    # 先不設密碼（帳號鎖住），之後由 --passwords 設定。
     pct exec "$CTID" -- useradd -m -s /bin/bash "${groups[@]}" student || return 1
-    pw=$(gen_password)
-    # 密碼從 stdin 傳進去，不出現在指令參數裡。
-    printf 'student:%s\n' "$pw" | pct exec "$CTID" -- chpasswd || return 1
     pct exec "$CTID" -- sh -c 'systemctl enable ssh >/dev/null 2>&1; systemctl restart ssh' || return 1
-    printf '%s\t%s\t%s\n' "$SID" "$(access_connect "$SID")" "$pw" >>"$CRED_FILE"
 }
 
 create_containers() {
     local i=0 args
     step "建立 ${#STUDENTS[@]} 台容器（$CT_CORES vCPU / ${CT_MEMORY_MB}MB / ${CT_DISK_GB}GB，$STORAGE）"
-    if ! $DRY_RUN && [ ! -f "$CRED_FILE" ]; then
-        (
-            umask 077
-            printf '# shell-lab 連線資訊：含明碼密碼，發完請刪除，不要 commit。\n# 學生\t連線指令\t密碼\n' >"$CRED_FILE"
-        )
-    fi
     for SID in "${STUDENTS[@]}"; do
         i=$((i + 1))
         ct_info "$SID"
         step "[$i/${#STUDENTS[@]}] CT $CTID $CT_NAME  $ADDRESS  ←  $(access_connect "$SID")"
         if ! $DRY_RUN && ct_exists "$CTID"; then
             ct_owned || die "CT $CTID 已被其他容器使用，請調整 CTID_START"
-            ok "已存在，略過（密碼見原本的連線資訊檔）"
+            ok "已存在，略過"
             continue
         fi
         mapfile -d '' -t args < <(create_args)
         run pct create "$CTID" "${args[@]}"
         if $DRY_RUN; then
-            printf '    %s[dry-run]%s 容器內：安裝 openssh-server、開啟密碼登入、建立 student%s、設隨機密碼\n' \
+            printf '    %s[dry-run]%s 容器內：安裝 openssh-server、開啟密碼登入、建立 student%s\n' \
                 "$C_DIM" "$C_RESET" "$($STUDENT_SUDO && echo '（sudo 群組）')"
             continue
         fi
@@ -280,8 +266,35 @@ cmd_create() {
     if $DRY_RUN; then
         step "dry-run 結束，沒有做任何變更"
     else
-        step "完成。連線資訊：$CRED_FILE（含明碼密碼，發完請刪除）"
+        step "完成。下一步設定密碼：labctl pve passwords-export | $0 --passwords（make pve 會自動接好）"
     fi
+}
+
+# stdin 每行「學生ID 密碼」。密碼經 stdin 交給容器裡的 chpasswd，不出現在指令參數裡。
+cmd_passwords() {
+    local sid password failed=()
+    precheck false
+    step "設定密碼"
+    while read -r sid password; do
+        [ -n "$sid" ] || continue
+        if ! printf '%s\n' "${STUDENTS[@]}" | grep -qxF -- "$sid"; then
+            warn "$sid 不在名單上，略過"
+            failed+=("$sid")
+            continue
+        fi
+        ct_info "$sid"
+        if ! ct_owned; then
+            warn "$sid 的容器 CT $CTID 不存在"
+            failed+=("$sid")
+            continue
+        fi
+        if [ -n "$password" ] && printf 'student:%s\n' "$password" | pct exec "$CTID" -- chpasswd; then
+            ok "CT $CTID $CT_NAME 密碼已設定"
+        else
+            failed+=("$sid")
+        fi
+    done
+    [ "${#failed[@]}" -eq 0 ] || die "這些學生沒有設定成功：${failed[*]}"
 }
 
 cmd_stop() {
@@ -299,7 +312,7 @@ cmd_start() {
 cmd_destroy() {
     local answer
     precheck false
-    step "即將刪除下列容器（含硬碟）、連線方式 $ACCESS_MODE 和連線資訊檔："
+    step "即將刪除下列容器（含硬碟）和連線方式 $ACCESS_MODE："
     each_owned list_one
     printf '%s輸入 yes 確認刪除：%s' "$C_YELLOW" "$C_RESET"
     read -r answer || true
@@ -307,14 +320,12 @@ cmd_destroy() {
     step "刪除容器"
     each_owned destroy_one
     access_remove
-    rm -f "$CRED_FILE"
-    ok "已刪除 $CRED_FILE"
     step "完成。NAT 橋接 $NAT_BRIDGE 保留在 $INTERFACES，不需要的話手動刪掉那一段後 ifreload -a"
 }
 
 case ${1:-} in
 -h | --help) usage 0 ;;
-"" | --dry-run | --stop | --start | --destroy) ;;
+"" | --dry-run | --passwords | --stop | --start | --destroy) ;;
 *) usage 2 >&2 ;;
 esac
 load_settings
@@ -324,6 +335,7 @@ case ${1:-} in
     DRY_RUN=true
     cmd_create
     ;;
+--passwords) cmd_passwords ;;
 --stop) cmd_stop ;;
 --start) cmd_start ;;
 --destroy) cmd_destroy ;;

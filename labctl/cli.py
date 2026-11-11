@@ -176,6 +176,15 @@ def cmd_pve_render_access(args):
     sys.stdout.write(render_access(load_pve_config(args.env)))
 
 
+def cmd_pve_passwords_new(args):
+    added = passwords.ensure(args.file, load_pve_config(args.env).students())
+    print(f"{args.file}: added {added} passwords")
+
+
+def cmd_pve_passwords_export(args):
+    sys.stdout.write(passwords.export_lines(args.file, load_pve_config(args.env).students()))
+
+
 def build_parser():
     parser = argparse.ArgumentParser(prog="labctl", description="Shell lab tooling")
     parser.add_argument("--env", default=".env", type=Path, help="settings file (default: .env)")
@@ -251,6 +260,11 @@ def build_parser():
     ct.add_argument("student")
     ct.add_argument("fields", nargs="+")
     command(pve, "render-access", cmd_pve_render_access, "nftables rules of the access mode")
+    for name, func, help_text in (
+        ("passwords-new", cmd_pve_passwords_new, "create a password for every student who has none"),
+        ("passwords-export", cmd_pve_passwords_export, "print `sid password` lines for shell-lab-setup.sh"),
+    ):
+        command(pve, name, func, help_text).add_argument("--file", default="local/pve-passwords.json")
     return parser
 
 
